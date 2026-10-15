@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20261015c">
+<link rel="stylesheet" href="css/styles.css?v=20261015d">
 </head>
 <body>
 <div id="root"></div>
@@ -38,7 +38,7 @@
 <sc-if value="{{scr.auth}}" hint-placeholder-val="{{ true }}">
 <main class="authwrap">
 <div class="authcard">
-<div class="authbrand"><h1 class="sr">Collabz</h1><img class="authlogo" src="assets/collabz-logo.png" alt="Collabz" width="81" height="29" style="height: 29px; width: auto; max-width: 100%"><p class="authtag">The Collabz App empowers fans to collaborate with professional creators for prizes and royalties.</p></div>
+<div class="authbrand"><h1 class="sr">Collabz</h1><img class="authlogo" src="assets/collabz-logo.png" alt="Collabz" width="250" height="89" style="width: min(250px, 100%); height: auto"><p class="authtag" style="font-size: 10px; width: 100%; max-width: 348px">The Collabz App empowers fans to collaborate with professional creators for prizes and royalties.</p></div>
 
 <sc-if value="{{auth.isLogin}}" hint-placeholder-val="{{ true }}">
 <form class="stack" onSubmit="{{doLogin}}">
@@ -49,12 +49,6 @@
 <sc-if value="{{auth.hasInfo}}" hint-placeholder-val="{{ false }}"><p class="info" role="status">{{auth.info}}</p></sc-if>
 <button class="btn grad full" type="submit">Log in</button>
 <p class="center muted">New to Collabz? <button type="button" class="lnk" onClick="{{toSignup}}">Create an account</button></p>
-<sc-if value="{{demoMode}}" hint-placeholder-val="{{ false }}">
-<div class="authfoot">
-<div class="divider">or explore with a demo account</div>
-<div class="two"><button type="button" class="btn ghost" onClick="{{demoFan}}">Demo fan</button><button type="button" class="btn ghost" onClick="{{demoArtist}}">Demo artist</button></div>
-</div>
-</sc-if>
 </form>
 </sc-if>
 
@@ -752,11 +746,11 @@
 </template>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
-<script src="js/runtime.js?v=20261015c"></script>
+<script src="js/runtime.js?v=20261015d"></script>
 <script src="vendor/supabase.js"></script>
-<script src="js/config.js?v=20261015c"></script>
-<script src="js/app.js?v=20261015c"></script>
-<script src="js/live.js?v=20261015c"></script>
+<script src="js/config.js?v=20261015d"></script>
+<script src="js/app.js?v=20261015d"></script>
+<script src="js/live.js?v=20261015d"></script>
 <script>
   // Live app by default (Supabase). Add ?screen=<name> to preview a screen with demo data,
   // e.g. index.html?screen=fan-showday (see README for the list).

@@ -83,9 +83,9 @@ select.in{appearance:auto}
 .drop{display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;padding:14px;border:1.5px dashed var(--line);border-radius:14px;background:var(--soft);font-weight:700;cursor:pointer;text-align:center;position:relative}
 .drop:hover{border-color:var(--a1)}
 /* auth */
-.authwrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:28px 16px;position:relative}
+.authwrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:64px 16px;position:relative}
 .authbrand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;margin-bottom:24px}
-.authlogo{height:29px;width:auto;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+.authlogo{width:min(250px,100%);height:auto;display:block;filter:drop-shadow(0 4px 12px rgba(0,0,0,.3))}
 .authtag{color:#f5a742;font-size:14px;font-weight:600;line-height:1.45;max-width:320px;text-wrap:balance}
 .authtop{width:100%;max-width:440px;display:flex;align-items:center;min-height:44px}
 .minilogo{height:26px;width:auto;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}

@@ -22,7 +22,7 @@ Opening `index.html` directly from disk also works in most browsers.
 
 ## Demo previews (no login, nothing saved)
 
-The live app starts at the real login. To preview any screen with built-in demo data, add `?screen=<name>` to the URL, for example `index.html?screen=fan-showday`. On `?screen=login` the **Demo fan** / **Demo artist** buttons appear.
+The live app starts at the real login. To preview any screen with built-in demo data, add `?screen=<name>` to the URL, for example `index.html?screen=fan-showday`.
 
 | Area | Screens |
 |------|---------|
