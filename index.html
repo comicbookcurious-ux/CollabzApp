@@ -37,9 +37,8 @@
 <!-- ================= AUTH ================= -->
 <sc-if value="{{scr.auth}}" hint-placeholder-val="{{ true }}">
 <main class="authwrap">
-<div class="authtop"><h1 class="sr">Collabz</h1><img class="minilogo" src="assets/collabz-logo.png" alt="Collabz"></div>
 <div class="authcard">
-<p class="muted sm" style="margin-bottom: 18px">Where fans and artists create together.</p>
+<div class="authbrand"><h1 class="sr">Collabz</h1><img class="authlogo" src="assets/collabz-logo.png" alt="Collabz"><p class="authtag">The Collabz App empowers fans to collaborate with professional creators for prizes and royalties.</p></div>
 
 <sc-if value="{{auth.isLogin}}" hint-placeholder-val="{{ true }}">
 <form class="stack" onSubmit="{{doLogin}}">
