@@ -330,3 +330,20 @@ select.in{appearance:auto}
 @keyframes spin{to{transform:rotate(360deg)}}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:120;max-width:min(520px,calc(100% - 32px));padding:14px 18px;border-radius:14px;background:#b4233f;color:#fff;font-weight:600;font-size:14px;line-height:1.4;box-shadow:0 18px 40px rgba(0,0,0,.35);animation:rise .25s ease both}
 .toast.ok{background:#1f1240;border:1px solid rgba(255,255,255,.18)}
+
+/* back button bar */
+.backrow{padding-top:14px;margin-bottom:-10px}
+.backlink{display:inline-flex;align-items:center;gap:4px;min-height:40px;padding:0 12px 0 6px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--fg);font-weight:700;font-size:14px}
+.backlink:hover{background:var(--card)}
+
+/* dropdowns: solid, readable menus on every theme */
+select.in{background-color:var(--sheet);color:var(--fg)}
+select.in option,select.in optgroup{background-color:var(--sheet);color:var(--fg)}
+
+/* up/down votes on submissions */
+.votes{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px}
+.vbtn{display:inline-flex;align-items:center;gap:6px;min-height:36px;min-width:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--fg);font-weight:700;font-size:14px}
+.vbtn:hover:not(:disabled){border-color:var(--a1)}
+.vbtn:disabled{opacity:.7;cursor:default}
+.vbtn.on.up{background:#15803d;border-color:#15803d;color:#fff}
+.vbtn.on.down{background:#b4233f;border-color:#b4233f;color:#fff}

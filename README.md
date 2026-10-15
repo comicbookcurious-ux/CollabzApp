@@ -7,7 +7,7 @@ A static web app (HTML, CSS and JavaScript) backed by **Supabase** for accounts,
 ## Supabase
 
 - Connection settings live in `js/config.js` (project URL and the public anon key; never put the service_role key there).
-- The database is created by `supabase/schema.sql` (run once in Supabase → SQL Editor).
+- The database is created by `supabase/schema.sql` (run once in Supabase → SQL Editor), then `supabase/002_submission_votes.sql` for upvotes/downvotes on image and video submissions.
 - `js/live.js` connects the screens to Supabase: sign up / log in / password reset, onboarding, challenges, Showday, lotteries, scoreboard, follows, community, chat and notifications. Uploads go to the `avatars`, `welcome-videos` and `submissions` storage buckets.
 - In Supabase → Authentication → URL Configuration, set **Site URL** to your live address (e.g. your Cloudflare URL) and add it under **Redirect URLs**, so confirmation and password-reset emails link back to the app.
 

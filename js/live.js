@@ -12,12 +12,12 @@
   const orig = {};
   ['renderVals', 'doLogin', 'doSignup', 'doForgot', 'logout', 'suNext', 'pickGenre', 'toggleFollow', 'openChat', 'sendChat',
    'submit', 'cancelSub', 'claim', 'hideCard', 'pickWinner', 'unpickWinner', 'enterLottery', 'draw', 'claimLottery',
-   'saveCh', 'saveEv', 'saveLt', 'doConfirm', 'saveEdit', 'deleteAccount', 'postTopic', 'sendReply', 'suFile', 'mFile', 'ansFile']
+   'saveCh', 'saveEv', 'saveLt', 'doConfirm', 'saveEdit', 'deleteAccount', 'postTopic', 'sendReply', 'suFile', 'mFile', 'ansFile', 'vote']
     .forEach((k) => { orig[k] = P[k]; });
 
   const TABLES = ['profiles', 'artist_genres', 'follows', 'wallets', 'showday_events', 'challenges', 'submissions',
-    'hidden_challenge_cards', 'lotteries', 'lottery_entries', 'lottery_winners', 'forum_threads', 'forum_replies', 'messages', 'notifications'];
-  const emptyDb = () => ({ users: {}, challenges: [], events: [], lotteries: [], subs: [], entries: [], hidden: [], forums: [], msgs: [], notifs: [] });
+    'hidden_challenge_cards', 'lotteries', 'lottery_entries', 'lottery_winners', 'forum_threads', 'forum_replies', 'messages', 'notifications', 'submission_votes'];
+  const emptyDb = () => ({ users: {}, challenges: [], events: [], lotteries: [], subs: [], entries: [], hidden: [], votes: [], forums: [], msgs: [], notifs: [] });
   const T = (s) => (s ? Date.parse(s) : 0);
   const must = (res) => { if (res && res.error) throw res.error; return res ? res.data : null; };
   const EMAIL = /^\S+@\S+\.\S+$/;
@@ -46,7 +46,7 @@
   function signedOut() {
     if (this.chan) { this.sb.removeChannel(this.chan); this.chan = null; }
     this.files = {};
-    this.setState({ me: null, screen: 'auth', db: emptyDb(), viewing: null, profileId: null, modal: null, setup: null, ans: {}, open: null, chatWith: null, pop: null });
+    this.setState({ me: null, screen: 'auth', db: emptyDb(), viewing: null, profileId: null, modal: null, setup: null, ans: {}, open: null, chatWith: null, pop: null, hist: [] });
   }
 
   async function afterSignIn(user) {
@@ -73,7 +73,7 @@
     if (this.chan) return;
     const schedule = () => { clearTimeout(this._rt); this._rt = setTimeout(() => reload.call(this).catch(() => {}), 400); };
     this.chan = this.sb.channel('collabz-live');
-    ['messages', 'notifications', 'submissions', 'challenges', 'lottery_winners', 'lottery_entries', 'forum_threads', 'forum_replies', 'follows', 'showday_events', 'lotteries', 'wallets']
+    ['messages', 'notifications', 'submissions', 'submission_votes', 'challenges', 'lottery_winners', 'lottery_entries', 'forum_threads', 'forum_replies', 'follows', 'showday_events', 'lotteries', 'wallets']
       .forEach((t) => this.chan.on('postgres_changes', { event: '*', schema: 'public', table: t }, schedule));
     this.chan.subscribe();
   }
@@ -88,7 +88,11 @@
       return q(t);
     }));
     const d = {};
-    TABLES.forEach((t, i) => { d[t] = must(res[i]) || []; });
+    TABLES.forEach((t, i) => {
+      // votes are optional until supabase/002_submission_votes.sql has been run
+      if (t === 'submission_votes' && res[i].error) { d[t] = []; return; }
+      d[t] = must(res[i]) || [];
+    });
     const db = emptyDb();
     d.profiles.forEach((p) => {
       const genres = d.artist_genres.filter((g) => g.artist_id === p.id).sort((a, b) => T(a.created_at) - T(b.created_at)).map((g) => g.genre_id);
@@ -107,6 +111,7 @@
     db.challenges = d.challenges.map((c) => ({ id: c.id, aid: c.artist_id, ev: c.event_id, title: c.title, desc: c.description || '', type: c.type, options: c.options || [], rt: c.reward_coin, rw: c.reward_amount, max: c.max_submissions, winner: c.winner_id, claimed: c.winner_claimed, at: T(c.created_at) }));
     db.subs = d.submissions.map((s) => ({ id: s.id, cid: s.challenge_id, uid: s.fan_id, answer: s.answer || '', file: s.media_url || null, at: T(s.created_at) }));
     db.hidden = d.hidden_challenge_cards.map((h) => ({ uid: h.user_id, cid: h.challenge_id }));
+    db.votes = d.submission_votes.map((v) => ({ sid: v.submission_id, uid: v.user_id, v: v.value }));
     db.lotteries = d.lotteries.map((l) => {
       const w = d.lottery_winners.filter((x) => x.lottery_id === l.id);
       return { id: l.id, aid: l.artist_id, title: l.title, desc: l.description || '', cost: l.tickets_per_entry, winners: l.winner_count, date: l.draw_date || '', drawn: !!l.drawn_at, drawnAt: T(l.drawn_at), picked: w.map((x) => x.fan_id), claims: w.filter((x) => x.claimed_at).map((x) => x.fan_id), at: T(l.created_at) };
@@ -241,9 +246,17 @@
     });
   });
 
+  wrap('vote', function (sid, v) {
+    const uid = this.state.me;
+    const cur = (this.state.db.votes || []).find((x) => x.sid === sid && x.uid === uid);
+    run.call(this, async () => {
+      must(await this.sb.from('submission_votes').delete().eq('submission_id', sid).eq('user_id', uid));
+      if (!cur || cur.v !== v) must(await this.sb.from('submission_votes').insert({ submission_id: sid, user_id: uid, value: v }));
+    });
+  });
+
   wrap('openChat', function (id) {
-    this.setState({ screen: 'chat', chatWith: id || null, modal: null, chatText: '' });
-    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+    this.go('chat', { chatWith: id || null, chatText: '' });
     if (id) run.call(this, async () => { must(await this.sb.from('messages').update({ read_at: new Date().toISOString() }).eq('sender_id', id).eq('recipient_id', this.state.me).is('read_at', null)); });
   });
 

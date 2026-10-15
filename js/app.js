@@ -167,6 +167,7 @@ class Component extends DCLogic {
       ],
       entries: [{ lid: 'l1', uid: 'f2', n: 2, at: t - D }, { lid: 'l2', uid: 'f2', n: 1, at: t - D }],
       hidden: [],
+      votes: [{ sid: 's2', uid: 'f1', v: 1 }, { sid: 's3', uid: 'f1', v: 1 }],
       forums: [
         { id: 'fo1', uid: 'a2', title: "Who's coming to the premiere?", body: 'Drop your city below. I want to see how far everyone is travelling.', at: t - 26 * H, replies: [{ uid: 'f2', text: 'Driving up from Fremantle!', at: t - 20 * H }] },
         { id: 'fo2', uid: 'f2', title: 'Favourite live moment this year?', body: 'Mine was the acoustic encore at the Perth show. Yours?', at: t - 3 * D, replies: [{ uid: 'a1', text: 'Honestly, singing with all of you in the rain.', at: t - 2 * D }] }
@@ -194,9 +195,35 @@ class Component extends DCLogic {
     const bits = img ? Array.from({ length: 10 }, (_, i) => { const a = (i / 10) * Math.PI * 2 + 0.3; const r = 150 + (i % 3) * 40; return { img: img, style: '--dx:' + Math.round(Math.cos(a) * r) + 'px;--dy:' + Math.round(Math.sin(a) * r) + 'px;animation-delay:' + (0.25 + i * 0.04).toFixed(2) + 's' }; }) : [];
     return { img: img || '', isCoin: !!img, isTicket: !img, big: n, title: title, sub: sub, bits: bits, k: Date.now() };
   }
+  // Navigation keeps a history of in-app screens so every screen can offer "Back".
+  snapshot(s) { return { screen: s.screen, viewing: s.viewing, profileId: s.profileId, tab: s.tab, genre: s.genre, gsel: s.gsel, chatWith: s.chatWith, sb: s.sb, forumOpen: s.forumOpen }; }
   go(screen, extra) {
-    this.setState(Object.assign({ screen: screen, modal: null }, extra || {}));
+    const s = this.state;
+    const hist = (s.hist || []).slice();
+    const navigable = ['artist', 'profile', 'community', 'chat', 'pickGenre', 'pickArtist'];
+    const next = Object.assign({}, s, extra || {}, { screen: screen });
+    const sameView = s.screen === screen && s.viewing === next.viewing && s.profileId === next.profileId && s.chatWith === next.chatWith && s.genre === next.genre;
+    if (s.me && navigable.includes(s.screen) && !sameView) hist.push(this.snapshot(s));
+    while (hist.length > 30) hist.shift();
+    this.setState(Object.assign({ screen: screen, modal: null, hist: hist }, extra || {}));
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+  }
+  back() {
+    const hist = (this.state.hist || []).slice();
+    const prev = hist.pop();
+    if (!prev) return this.home();
+    this.setState(Object.assign({ modal: null, open: null, hist: hist }, prev));
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+  }
+  // Up/down votes on image and video submissions (fans only, not on your own entry)
+  vote(sid, v) {
+    const meId = this.state.me;
+    this.mut(db => {
+      db.votes = db.votes || [];
+      const cur = db.votes.find(x => x.sid === sid && x.uid === meId);
+      db.votes = db.votes.filter(x => !(x.sid === sid && x.uid === meId));
+      if (!cur || cur.v !== v) db.votes.push({ sid: sid, uid: meId, v: v });
+    });
   }
   openArtist(id, tab, open, sb) { this.go('artist', { viewing: id, tab: tab || 'challenges', open: open || null, sb: sb || { cat: 'challenge', sel: '' } }); }
   openProfile(id) { if (!this.state.db.users[id]) return; this.go('profile', { profileId: id }); }
@@ -220,7 +247,7 @@ class Component extends DCLogic {
   authErr(msg) { this.setState({ auth: Object.assign({}, this.state.auth, { error: msg, info: '' }) }); }
   enter(id) {
     const u = this.state.db.users[id]; if (!u) return;
-    const base = { me: id, auth: this.blankAuth(), modal: null, open: null, ans: {}, q: '', chatWith: null };
+    const base = { me: id, auth: this.blankAuth(), modal: null, open: null, ans: {}, q: '', chatWith: null, hist: [] };
     if (u.role === 'artist') this.go('artist', Object.assign(base, { viewing: id, tab: 'challenges', sb: { cat: 'challenge', sel: '' } }));
     else this.go('pickArtist', Object.assign(base, { genre: u.genre || 'music', viewing: null }));
   }
@@ -250,7 +277,7 @@ class Component extends DCLogic {
     if (!/^\S+@\S+\.\S+$/.test(em)) return this.authErr('Enter the email you signed up with.');
     this.setState({ auth: Object.assign({}, this.state.auth, { error: '', info: 'If an account exists for ' + em + ', a password reset link is on its way. Check your inbox.' }) });
   }
-  logout() { this.go('auth', { me: null, viewing: null, profileId: null, auth: this.blankAuth(), modal: null, setup: null, ans: {}, open: null }); }
+  logout() { this.go('auth', { me: null, viewing: null, profileId: null, auth: this.blankAuth(), modal: null, setup: null, ans: {}, open: null, hist: [] }); }
 
   // ---------- setup ----------
   setSu(k, v) { this.setState({ setup: Object.assign({}, this.state.setup, { [k]: v, err: '' }) }); }
@@ -544,6 +571,21 @@ class Component extends DCLogic {
       mediaLabel: c.type === 'image' ? 'Photo submission' : 'Video submission', isWinner: c.winner === x.uid
     };
   }
+  voteView(x, c, me) {
+    const votes = (this.state.db.votes || []).filter(v => v.sid === x.id);
+    const up = votes.filter(v => v.v > 0).length, down = votes.filter(v => v.v < 0).length;
+    const mine = me ? votes.find(v => v.uid === me.id) : null;
+    const isMine = !!me && x.uid === me.id, canVote = !!me && me.role === 'fan' && !isMine;
+    const score = up - down;
+    return {
+      votable: c.type !== 'mc', score: score, upCount: up, downCount: down,
+      myUp: !!(mine && mine.v > 0), myDown: !!(mine && mine.v < 0),
+      upCls: mine && mine.v > 0 ? 'vbtn on up' : 'vbtn', downCls: mine && mine.v < 0 ? 'vbtn on down' : 'vbtn',
+      noVote: !canVote, voteHint: isMine ? 'You can’t vote on your own submission' : (canVote ? '' : 'Fans vote on submissions'),
+      scoreText: (score > 0 ? '+' : '') + score + ' score',
+      up: () => canVote && this.vote(x.id, 1), down: () => canVote && this.vote(x.id, -1)
+    };
+  }
   ltItem(l, ctx) {
     const s = this.state, db = s.db, me = ctx.me, open = s.open === l.id;
     const ents = db.entries.filter(e => e.lid === l.id), total = ents.reduce((a, b) => a + b.n, 0);
@@ -584,8 +626,11 @@ class Component extends DCLogic {
     const ctx = { me: me, isOwner: isOwner, isFan: isFan, isVisitor: isVisitor };
 
     // theme: artist page uses artist theme (live preview while owner edits)
-    let themeKey = 'default';
-    if (A) { themeKey = A.theme || 'default'; if (isOwner && s.modal && s.modal.kind === 'edit') themeKey = s.modal.theme; }
+    // Artists see their own theme on every screen; anyone on an artist's page sees that artist's theme.
+    const meArtist = !!me && me.role === 'artist';
+    let themeKey = meArtist ? (me.theme || 'default') : 'default';
+    if (A) themeKey = A.theme || 'default';
+    if (meArtist && (!A || isOwner) && s.modal && s.modal.kind === 'edit') themeKey = s.modal.theme;
 
     // field handlers
     const val = (fn) => (e) => fn(e.target.value);
@@ -604,7 +649,7 @@ class Component extends DCLogic {
     // header
     const unreadNotif = me ? db.notifs.filter(n => n.uid === me.id && !n.read).length : 0;
     const unreadMsg = me ? db.msgs.filter(m => m.to === me.id && !m.read).length : 0;
-    const hdr = { av: this.av(me), notif: unreadNotif > 9 ? '9+' : unreadNotif, hasNotif: unreadNotif > 0, msg: unreadMsg, hasMsg: unreadMsg > 0 };
+    const hdr = { isFan: !!me && me.role === 'fan', av: this.av(me),notif: unreadNotif > 9 ? '9+' : unreadNotif, hasNotif: unreadNotif > 0, msg: unreadMsg, hasMsg: unreadMsg > 0 };
 
     // auth
     const a = s.auth;
@@ -640,8 +685,11 @@ class Component extends DCLogic {
     const gp = {
       chips: this.genres().map(g => ({ label: g[1], on: s.gsel === g[0], cls: s.gsel === g[0] ? 'gchip on' : 'gchip', pick: () => this.setState({ gsel: g[0] }) })),
       none: !s.gsel, go: () => s.gsel && this.pickGenre(s.gsel),
+      q: s.gq || '', setQ: val(v => this.setState({ gq: v })), hasQ: !!(s.gq || '').trim(),
+      results: (s.gq || '').trim() ? artists.filter(u => u.name.toLowerCase().includes(s.gq.trim().toLowerCase())).slice(0, 12).map(u => ({ name: u.name, av: this.av(u), sub: this.gNames(u) + (u.location ? ' · ' + u.location : ''), go: () => this.openArtist(u.id) })) : [],
       back: () => { if (me && me.role === 'artist') this.openArtist(me.id); else if (s.viewing && db.users[s.viewing]) this.openArtist(s.viewing); else this.go('pickArtist', { genre: (me && me.genre) || 'music' }); }
     };
+    gp.noResults = gp.hasQ && gp.results.length === 0;
     const ex = {
       back: () => this.go('pickGenre', { gsel: s.genre }),
       title: this.genreName(s.genre) + ' artists', genre: this.genreName(s.genre), has: inGenre.length > 0, none: inGenre.length === 0,
@@ -711,8 +759,10 @@ class Component extends DCLogic {
             title: c.title, meta: (ev ? ev.title + ' · ' : '') + { mc: 'Multiple choice', image: 'Image', video: 'Video' }[c.type] + ' · +' + c.rw + ' ' + c.rt + ' per entry · ' + this.plural(subs.length, 'submission', 'submissions'),
             status: w ? (c.claimed ? 'Winner: ' + w.name + ' (prize claimed, can no longer be changed)' : 'Winner: ' + w.name + ' (not claimed yet, you can still change it)') : (isOwner ? 'No winner yet. Pick one from the submissions below. They get 1 green coin.' : 'No winner picked yet.'),
             statusCls: w ? 'note ok' : 'note', noRows: subs.length === 0, noRowsText: 'No submissions yet.',
-            rows: subs.map(x => { const v = this.subView(x, c, me); const isW = c.winner === x.uid; return Object.assign(v, { isEntry: false, cls: isW ? 'sub win' : 'sub', winLabel: c.claimed ? 'Winner · claimed' : 'Winner', canPick: isOwner && !c.claimed && !isW, pickLabel: c.winner ? 'Make winner instead' : 'Select as the winner', pick: () => this.pickWinner(c.id, x.uid), canUnpick: isOwner && isW && !c.claimed, unpick: () => this.unpickWinner(c.id) }); })
+            rows: subs.map(x => { const v = Object.assign(this.subView(x, c, me), this.voteView(x, c, me)); const isW = c.winner === x.uid; return Object.assign(v, { isEntry: false, cls: isW ? 'sub win' : 'sub', winLabel: c.claimed ? 'Winner · claimed' : 'Winner', canPick: isOwner && !c.claimed && !isW, pickLabel: c.winner ? 'Make winner instead' : 'Select as the winner', pick: () => this.pickWinner(c.id, x.uid), canUnpick: isOwner && isW && !c.claimed, unpick: () => this.unpickWinner(c.id) }); })
           });
+          // Image and video entries: most popular first, so the artist sees what fans like
+          if (c.type !== 'mc') sb.rows.sort((p, q) => q.score - p.score);
         }
         if (sel && cat === 'lottery') {
           const l = sel, ents = db.entries.filter(e => e.lid === l.id).sort((x, y) => y.n - x.n), total = ents.reduce((p, q) => p + q.n, 0);
@@ -834,6 +884,7 @@ class Component extends DCLogic {
       themeStyle: this.themeCss(themeKey), showHeader: !!me && !scr.auth && !scr.setup, scr: scr, hdr: hdr, f: f, mf: mf, auth: auth, su: su,
       genreCards: genreCards, gp: gp, ex: ex, ap: ap, tabs: tabs, pn: pn, blocks: blocks, sb: sb, cm: cm, pf: pf, ch: ch, md: md, pp: pp,
       q: s.q, reply: s.reply, chatText: s.chatText,
+      nav: { canBack: !!me && !scr.auth && !scr.setup && (s.hist || []).length > 0, back: () => this.back() },
       goHome: () => this.home(), goExplore: () => this.go('pickGenre'), goCommunity: () => this.go('community'),
       goChat: () => { const meId = s.me; const mine = db.msgs.filter(m => m.from === meId || m.to === meId).sort((x, y) => y.at - x.at); const o = mine[0] ? (mine[0].from === meId ? mine[0].to : mine[0].from) : null; this.openChat(o); },
       goMyProfile: () => me && this.openProfile(me.id),
