@@ -24,14 +24,16 @@
 <div class="topin">
 <button class="logo" onClick="{{goHome}}" aria-label="Collabz home"><img src="assets/collabz-logo.png" alt="Collabz"></button>
 <nav class="nav" aria-label="Main">
-<button class="ib" onClick="{{goExplore}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m16.2 7.8-2.1 6.3-6.3 2.1 2.1-6.3z"></path></svg><span class="lbl">Explore</span></button>
-<button class="ib" onClick="{{goCommunity}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"></path></svg><span class="lbl">Community</span></button>
+<sc-if value="{{hdr.isFan}}" hint-placeholder-val="{{ false }}"><button class="ib" onClick="{{goExplore}}" aria-label="Find artists: change genre or search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><span class="lbl">Find artists</span></button></sc-if>
 <button class="ib" onClick="{{goChat}}" aria-label="Messages"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="lbl">Chat</span><sc-if value="{{hdr.hasMsg}}" hint-placeholder-val="{{ false }}"><span class="badge">{{hdr.msg}}</span></sc-if></button>
 <button class="ib" onClick="{{openNotifs}}" aria-label="Notifications"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></svg><sc-if value="{{hdr.hasNotif}}" hint-placeholder-val="{{ false }}"><span class="badge">{{hdr.notif}}</span></sc-if></button>
 <button class="avbtn" onClick="{{goMyProfile}}" aria-label="Your profile" style="margin-left: 6px"><span class="av a36" style="background: {{hdr.av.bg}}"><sc-if value="{{hdr.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{hdr.av.img}}" alt=""></sc-if><sc-if value="{{hdr.av.noImg}}" hint-placeholder-val="{{ true }}">{{hdr.av.ini}}</sc-if></span></button>
 </nav>
 </div>
 </header>
+</sc-if>
+<sc-if value="{{nav.canBack}}" hint-placeholder-val="{{ false }}">
+<div class="wrap backrow"><button type="button" class="backlink" onClick="{{nav.back}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>Back</button></div>
 </sc-if>
 
 <!-- ================= AUTH ================= -->
@@ -166,11 +168,20 @@
 <!-- ================= PICK GENRE ================= -->
 <sc-if value="{{scr.genre}}" hint-placeholder-val="{{ false }}">
 <main class="wrap narrow page" style="padding-top: 16px">
-<div><button type="button" class="backbtn" onClick="{{gp.back}}" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button></div>
 <div class="stack" style="gap: 6px">
-<h1 class="h1">Choose your favorite genre</h1>
-<p class="muted">Select one that interests you most</p>
+<h1 class="h1">Find artists</h1>
+<p class="muted">Search for an artist by name, or choose a genre to see the list of artists in it.</p>
 </div>
+<div class="search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><input class="in" type="search" aria-label="Search artists by name" placeholder="Search artists by name" value="{{gp.q}}" onChange="{{gp.setQ}}"></div>
+<sc-if value="{{gp.hasQ}}" hint-placeholder-val="{{ false }}">
+<div class="card people" style="padding: 8px">
+<sc-if value="{{gp.noResults}}" hint-placeholder-val="{{ false }}"><p class="muted" style="padding: 10px">No artists match “{{gp.q}}”.</p></sc-if>
+<sc-for list="{{gp.results}}" as="r" hint-placeholder-count="2">
+<button type="button" class="person" onClick="{{r.go}}"><span class="av a40" style="background: {{r.av.bg}}"><sc-if value="{{r.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.img}}" alt=""></sc-if><sc-if value="{{r.av.noImg}}" hint-placeholder-val="{{ true }}">{{r.av.ini}}</sc-if></span><span class="nm"><strong>{{r.name}}</strong><span class="muted sm">{{r.sub}}</span></span></button>
+</sc-for>
+</div>
+</sc-if>
+<p class="goldlabel" style="margin-top: 8px">Or choose a genre</p>
 <div class="gchips" role="group" aria-label="Genres">
 <sc-for list="{{gp.chips}}" as="g" hint-placeholder-count="11"><button type="button" class="{{g.cls}}" onClick="{{g.pick}}" aria-pressed="{{g.on}}">{{g.label}}</button></sc-for>
 </div>
@@ -181,8 +192,7 @@
 <!-- ================= PICK ARTIST ================= -->
 <sc-if value="{{scr.artists}}" hint-placeholder-val="{{ false }}">
 <main class="wrap page" style="padding-top: 16px">
-<div><button type="button" class="backbtn" onClick="{{ex.back}}" aria-label="Back to genres"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button></div>
-<h1 class="h1">{{ex.genre}}</h1>
+<div class="row" style="justify-content: space-between"><h1 class="h1">{{ex.genre}}</h1><button type="button" class="btn ghost sm" onClick="{{ex.back}}">Change genre</button></div>
 <p class="goldlabel">Artists</p>
 <sc-if value="{{ex.has}}" hint-placeholder-val="{{ true }}">
 <div class="alist2">
@@ -452,6 +462,13 @@
 <sc-if value="{{r.hasImg}}" hint-placeholder-val="{{ false }}"><img class="subimg" src="{{r.file}}" alt="Submission by {{r.name}}"></sc-if>
 <sc-if value="{{r.hasVid}}" hint-placeholder-val="{{ false }}"><video class="subimg" src="{{r.file}}" controls playsinline></video></sc-if>
 <sc-if value="{{r.noMedia}}" hint-placeholder-val="{{ false }}"><div class="mph tall">{{r.mediaLabel}}</div></sc-if>
+<sc-if value="{{r.votable}}" hint-placeholder-val="{{ false }}">
+<div class="votes" role="group" aria-label="Votes for {{r.name}}'s submission">
+<button type="button" class="{{r.upCls}}" onClick="{{r.up}}" disabled="{{r.noVote}}" aria-pressed="{{r.myUp}}" aria-label="Upvote" title="{{r.voteHint}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>{{r.upCount}}</button>
+<button type="button" class="{{r.downCls}}" onClick="{{r.down}}" disabled="{{r.noVote}}" aria-pressed="{{r.myDown}}" aria-label="Downvote" title="{{r.voteHint}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M19 12l-7 7-7-7"></path></svg>{{r.downCount}}</button>
+<span class="muted sm">{{r.scoreText}}</span>
+</div>
+</sc-if>
 </div>
 <div class="subact">
 <sc-if value="{{r.isWinner}}" hint-placeholder-val="{{ false }}"><span class="st win">{{r.winLabel}}</span></sc-if>
