@@ -347,3 +347,6 @@ select.in option,select.in optgroup{background-color:var(--sheet);color:var(--fg
 .vbtn:disabled{opacity:.7;cursor:default}
 .vbtn.on.up{background:#15803d;border-color:#15803d;color:#fff}
 .vbtn.on.down{background:#b4233f;border-color:#b4233f;color:#fff}
+
+/* Community lounge inside the artist page: space below the tabs */
+.cmtab{margin-top:28px}

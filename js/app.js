@@ -786,7 +786,7 @@ class Component extends DCLogic {
       const results = q ? Object.values(db.users).filter(u => u.name.toLowerCase().includes(q)).slice(0, 12).map(u => ({ name: u.name, av: this.av(u), sub: (u.role === 'artist' ? 'Artist · ' + this.gNames(u) : 'Fan') + (u.location ? ' · ' + u.location : ''), go: () => this.openProfile(u.id) })) : [];
       const d = s.forumDraft;
       cm = {
-        show: true, wrapCls: sc === 'community' ? 'wrap page' : 'wrap panel', hCls: sc === 'community' ? 'h1' : 'h2',
+        show: true, wrapCls: sc === 'community' ? 'wrap page' : 'wrap panel cmtab', hCls: sc === 'community' ? 'h1' : 'h2',
         hasQ: !!q, results: results, noResults: !!q && results.length === 0,
         drafting: !!d, d: d || {}, hasErr: !!(d && d.err),
         newTopic: () => this.setState({ forumDraft: { title: '', body: '', err: '' } }), cancel: () => this.setState({ forumDraft: null }), post: (e) => this.postTopic(e),
