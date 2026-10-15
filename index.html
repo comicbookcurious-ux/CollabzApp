@@ -464,9 +464,10 @@
 <sc-if value="{{r.noMedia}}" hint-placeholder-val="{{ false }}"><div class="mph tall">{{r.mediaLabel}}</div></sc-if>
 <sc-if value="{{r.votable}}" hint-placeholder-val="{{ false }}">
 <div class="votes" role="group" aria-label="Votes for {{r.name}}'s submission">
-<button type="button" class="{{r.upCls}}" onClick="{{r.up}}" disabled="{{r.noVote}}" aria-pressed="{{r.myUp}}" aria-label="Upvote" title="{{r.voteHint}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>{{r.upCount}}</button>
-<button type="button" class="{{r.downCls}}" onClick="{{r.down}}" disabled="{{r.noVote}}" aria-pressed="{{r.myDown}}" aria-label="Downvote" title="{{r.voteHint}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M19 12l-7 7-7-7"></path></svg>{{r.downCount}}</button>
-<span class="muted sm">{{r.scoreText}}</span>
+<button type="button" class="{{r.upCls}}" onClick="{{r.up}}" disabled="{{r.noVote}}" aria-pressed="{{r.myUp}}" aria-label="Upvote ({{r.upCount}})" title="{{r.voteHint}}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 4.5 12.5H9V20h6v-7.5h4.5z"></path></svg></button>
+<span class="{{r.scoreCls}}">{{r.score}}</span>
+<button type="button" class="{{r.downCls}}" onClick="{{r.down}}" disabled="{{r.noVote}}" aria-pressed="{{r.myDown}}" aria-label="Downvote ({{r.downCount}})" title="{{r.voteHint}}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20l7.5-8.5H15V4H9v7.5H4.5z"></path></svg></button>
+<span class="vmeta">{{r.upCount}} up · {{r.downCount}} down</span>
 </div>
 </sc-if>
 </div>
