@@ -424,7 +424,7 @@
     v.auth.isReset = this.state.auth.mode === 'reset';
     v.doReset = (e) => this.doReset(e);
     if (v.loading) {
-      v.scr = { auth: false, setup: false, genre: false, artists: false, artist: false, profile: false, chat: false };
+      v.scr = { search: false, auth: false, setup: false, genre: false, artists: false, artist: false, profile: false, chat: false };
       v.showHeader = false;
       v.cm = { show: false };
       v.md = { show: false };

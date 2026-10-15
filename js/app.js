@@ -196,11 +196,11 @@ class Component extends DCLogic {
     return { img: img || '', isCoin: !!img, isTicket: !img, big: n, title: title, sub: sub, bits: bits, k: Date.now() };
   }
   // Navigation keeps a history of in-app screens so every screen can offer "Back".
-  snapshot(s) { return { screen: s.screen, viewing: s.viewing, profileId: s.profileId, tab: s.tab, genre: s.genre, gsel: s.gsel, chatWith: s.chatWith, sb: s.sb, forumOpen: s.forumOpen }; }
+  snapshot(s) { return { sq: s.sq, screen: s.screen, viewing: s.viewing, profileId: s.profileId, tab: s.tab, genre: s.genre, gsel: s.gsel, chatWith: s.chatWith, sb: s.sb, forumOpen: s.forumOpen }; }
   go(screen, extra) {
     const s = this.state;
     const hist = (s.hist || []).slice();
-    const navigable = ['artist', 'profile', 'community', 'chat', 'pickGenre', 'pickArtist'];
+    const navigable = ['artist', 'profile', 'community', 'chat', 'pickGenre', 'pickArtist', 'search'];
     const next = Object.assign({}, s, extra || {}, { screen: screen });
     const sameView = s.screen === screen && s.viewing === next.viewing && s.profileId === next.profileId && s.chatWith === next.chatWith && s.genre === next.genre;
     if (s.me && navigable.includes(s.screen) && !sameView) hist.push(this.snapshot(s));
@@ -642,8 +642,8 @@ class Component extends DCLogic {
     const s = this.state, db = s.db, me = db.users[s.me] || null;
     const sc = s.screen;
     const A = sc === 'artist' ? db.users[s.viewing] : null;
-    const scr = { auth: sc === 'auth' || (!me && sc !== 'auth'), setup: sc === 'setup' && !!s.setup, genre: sc === 'pickGenre', artists: sc === 'pickArtist', artist: !!A, profile: sc === 'profile' && !!db.users[s.profileId], chat: sc === 'chat' };
-    if (!me) { scr.setup = scr.genre = scr.artists = scr.artist = scr.profile = scr.chat = false; }
+    const scr = { search: sc === 'search', auth: sc === 'auth' || (!me && sc !== 'auth'), setup: sc === 'setup' && !!s.setup, genre: sc === 'pickGenre', artists: sc === 'pickArtist', artist: !!A, profile: sc === 'profile' && !!db.users[s.profileId], chat: sc === 'chat' };
+    if (!me) { scr.search = scr.setup = scr.genre = scr.artists = scr.artist = scr.profile = scr.chat = false; }
     const isOwner = !!(A && me && A.id === me.id), isFan = !!(A && me && me.role === 'fan'), isVisitor = !!(A && me && !isOwner && !isFan);
     const ctx = { me: me, isOwner: isOwner, isFan: isFan, isVisitor: isVisitor };
 
@@ -671,7 +671,7 @@ class Component extends DCLogic {
     // header
     const unreadNotif = me ? db.notifs.filter(n => n.uid === me.id && !n.read).length : 0;
     const unreadMsg = me ? db.msgs.filter(m => m.to === me.id && !m.read).length : 0;
-    const hdr = { isFan: !!me && me.role === 'fan', av: this.av(me),notif: unreadNotif > 9 ? '9+' : unreadNotif, hasNotif: unreadNotif > 0, msg: unreadMsg, hasMsg: unreadMsg > 0 };
+    const hdr = { isFan: !!me && me.role === 'fan', isArtist: !!me && me.role === 'artist', av: this.av(me),notif: unreadNotif > 9 ? '9+' : unreadNotif, hasNotif: unreadNotif > 0, msg: unreadMsg, hasMsg: unreadMsg > 0 };
 
     // auth
     const a = s.auth;
@@ -717,6 +717,19 @@ class Component extends DCLogic {
       title: this.genreName(s.genre) + ' artists', genre: this.genreName(s.genre), has: inGenre.length > 0, none: inGenre.length === 0,
       chips: this.genres().map(g => ({ label: g[1], on: s.genre === g[0], cls: s.genre === g[0] ? 'chip on' : 'chip', pick: () => this.pickGenre(g[0]) })),
       artists: inGenre.map(u => ({ name: u.name, av: this.av(u), bio: u.bio || 'No bio yet.', sub: [u.location, this.plural(u.followers.length, 'follower', 'followers')].filter(Boolean).join(' · '), open: () => this.openArtist(u.id) }))
+    };
+
+    // search (artists): find artists and fans
+    const sqv = (s.sq || '').trim().toLowerCase();
+    const personRow = (u) => ({ name: u.name, av: this.av(u), role: u.role === 'artist' ? 'ARTIST' : 'FAN',
+      sub: u.role === 'artist' ? this.gNames(u) + (u.location ? ' · ' + u.location : '') : (u.location || 'Fan') + ' · ' + this.plural(u.followers.length, 'follower', 'followers'),
+      go: () => (u.role === 'artist' ? this.openArtist(u.id) : this.openProfile(u.id)) });
+    const others = Object.values(db.users).filter(u => !me || u.id !== me.id);
+    const found = sqv ? others.filter(u => u.name.toLowerCase().includes(sqv)).sort((x, y) => (x.role === y.role ? x.name.localeCompare(y.name) : (x.role === 'artist' ? -1 : 1))).slice(0, 30) : [];
+    const srch = {
+      q: s.sq || '', setQ: val(v => this.setState({ sq: v })), hasQ: !!sqv, noQ: !sqv,
+      results: found.map(personRow), noResults: !!sqv && found.length === 0,
+      suggested: others.filter(u => u.role === 'artist').sort((x, y) => y.followers.length - x.followers.length).slice(0, 8).map(personRow)
     };
 
     // artist page
@@ -904,10 +917,10 @@ class Component extends DCLogic {
 
     return {
       themeStyle: this.themeCss(themeKey), showHeader: !!me && !scr.auth && !scr.setup, scr: scr, hdr: hdr, f: f, mf: mf, auth: auth, su: su,
-      genreCards: genreCards, gp: gp, ex: ex, ap: ap, tabs: tabs, pn: pn, blocks: blocks, sb: sb, cm: cm, pf: pf, ch: ch, md: md, pp: pp,
+      genreCards: genreCards, gp: gp, ex: ex, srch: srch, ap: ap, tabs: tabs, pn: pn, blocks: blocks, sb: sb, cm: cm, pf: pf, ch: ch, md: md, pp: pp,
       q: s.q, reply: s.reply, chatText: s.chatText,
       nav: { canBack: !!me && !scr.auth && !scr.setup && (s.hist || []).length > 0, back: () => this.back() },
-      goHome: () => this.home(), goExplore: () => this.go('pickGenre'), goCommunity: () => this.go('community'),
+      goHome: () => this.home(), goExplore: () => this.go('pickGenre'), goSearch: () => this.go('search'), goCommunity: () => this.go('community'),
       goChat: () => { const meId = s.me; const mine = db.msgs.filter(m => m.from === meId || m.to === meId).sort((x, y) => y.at - x.at); const o = mine[0] ? (mine[0].from === meId ? mine[0].to : mine[0].from) : null; this.openChat(o); },
       goMyProfile: () => me && this.openProfile(me.id),
       openNotifs: () => { const meId = s.me; const fresh = db.notifs.filter(n => n.uid === meId && !n.read).map(n => n.id); this.mut(d2 => { d2.notifs.forEach(n => { if (n.uid === meId) n.read = true; }); }, { modal: { kind: 'notifs', fresh: fresh } }); },
