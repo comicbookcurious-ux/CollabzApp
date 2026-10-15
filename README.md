@@ -2,7 +2,14 @@
 
 Where fans and artists create together. Artists post challenges, Showday events and lotteries; fans take part, earn coins and win experiences.
 
-This repository is a **clickable front-end prototype**: a static web app (HTML, CSS and JavaScript) with demo data built in. There is no server or database yet, so everything resets when the page reloads.
+A static web app (HTML, CSS and JavaScript) backed by **Supabase** for accounts, data, file storage and live updates. There's no build step.
+
+## Supabase
+
+- Connection settings live in `js/config.js` (project URL and the public anon key; never put the service_role key there).
+- The database is created by `supabase/schema.sql` (run once in Supabase → SQL Editor).
+- `js/live.js` connects the screens to Supabase: sign up / log in / password reset, onboarding, challenges, Showday, lotteries, scoreboard, follows, community, chat and notifications. Uploads go to the `avatars`, `welcome-videos` and `submissions` storage buckets.
+- In Supabase → Authentication → URL Configuration, set **Site URL** to your live address (e.g. your Cloudflare URL) and add it under **Redirect URLs**, so confirmation and password-reset emails link back to the app.
 
 ## Run it
 
@@ -13,20 +20,9 @@ No build step is needed.
 
 Opening `index.html` directly from disk also works in most browsers.
 
-## Demo accounts
+## Demo previews (no login, nothing saved)
 
-Use the **Demo fan** or **Demo artist** buttons on the login screen, or log in manually:
-
-| Role   | Email              | Password   |
-|--------|--------------------|------------|
-| Fan    | jess@collabz.app   | demo1234   |
-| Artist | kai@collabz.app    | demo1234   |
-
-Any new account you sign up works too, for as long as the page stays open.
-
-## Jump straight to a screen
-
-Add `?screen=<name>` to the URL, for example `index.html?screen=fan-showday`.
+The live app starts at the real login. To preview any screen with built-in demo data, add `?screen=<name>` to the URL, for example `index.html?screen=fan-showday`. On `?screen=login` the **Demo fan** / **Demo artist** buttons appear.
 
 | Area | Screens |
 |------|---------|
@@ -57,8 +53,12 @@ Add `?screen=<name>` to the URL, for example `index.html?screen=fan-showday`.
 index.html          Page shell and the screen markup (inside <template id="app-template">)
 css/styles.css      All styles, including the 7 themes and animations
 js/app.js           App logic: state, demo data, actions and the values each screen shows
+js/live.js          Supabase connection: swaps each action for a Supabase call in live mode
+js/config.js        Supabase project URL and public anon key
 js/runtime.js       Small renderer that turns the template into React elements
-vendor/             React 18.3.1 (production builds), so no CDN is needed
+vendor/             React 18.3.1 and supabase-js 2.45.4, so no CDN is needed
+supabase/schema.sql Database setup (tables, security rules, coin and lottery logic, storage)
+wrangler.jsonc      Cloudflare settings (.assetsignore keeps README/SQL off the public site)
 assets/             Logo, icon, coins and favicons
 favicon.ico
 ```
@@ -74,8 +74,7 @@ favicon.ico
 
 To change a screen, edit its markup in `index.html`. To change behaviour or demo data, edit `js/app.js` (`seed()` holds the demo data).
 
-## Next steps for production
+## Notes
 
-- Add a backend (e.g. Supabase or Firebase) for accounts, password reset emails, storage for uploaded images and videos, and real-time chat and notifications
-- Move coin, ticket and winner logic to the server so balances can't be edited in the browser
-- Swap the demo data in `seed()` for API calls
+- Coins, tickets and winners only change through server-side functions in `supabase/schema.sql`, so balances can't be edited from the browser.
+- The app loads all rows at sign-in and refreshes on realtime changes. That's fine for launch; with many thousands of users, switch to paged queries per screen.

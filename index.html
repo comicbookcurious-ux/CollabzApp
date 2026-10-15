@@ -47,12 +47,25 @@
 <div class="fld"><label for="le">Email</label><input id="le" class="in" type="email" autocomplete="email" placeholder="you@example.com" value="{{auth.email}}" onChange="{{f.authEmail}}"></div>
 <div class="fld"><div class="lblrow"><label for="lp" class="flabel">Password</label><button type="button" class="lnk sm" onClick="{{toForgot}}">Forgot password?</button></div><input id="lp" class="in" type="password" autocomplete="current-password" placeholder="Your password" value="{{auth.password}}" onChange="{{f.authPassword}}"></div>
 <sc-if value="{{auth.hasError}}" hint-placeholder-val="{{ false }}"><p class="err" role="alert">{{auth.error}}</p></sc-if>
+<sc-if value="{{auth.hasInfo}}" hint-placeholder-val="{{ false }}"><p class="info" role="status">{{auth.info}}</p></sc-if>
 <button class="btn grad full" type="submit">Log in</button>
 <p class="center muted">New to Collabz? <button type="button" class="lnk" onClick="{{toSignup}}">Create an account</button></p>
+<sc-if value="{{demoMode}}" hint-placeholder-val="{{ false }}">
 <div class="authfoot">
 <div class="divider">or explore with a demo account</div>
 <div class="two"><button type="button" class="btn ghost" onClick="{{demoFan}}">Demo fan</button><button type="button" class="btn ghost" onClick="{{demoArtist}}">Demo artist</button></div>
 </div>
+</sc-if>
+</form>
+</sc-if>
+
+<sc-if value="{{auth.isReset}}" hint-placeholder-val="{{ false }}">
+<form class="stack" onSubmit="{{doReset}}">
+<h2 class="h2">Choose a new password</h2>
+<p class="muted">Enter a new password for your Collabz account.</p>
+<div class="fld"><label for="np">New password</label><input id="np" class="in" type="password" autocomplete="new-password" placeholder="At least 6 characters" value="{{auth.password}}" onChange="{{f.authPassword}}"></div>
+<sc-if value="{{auth.hasError}}" hint-placeholder-val="{{ false }}"><p class="err" role="alert">{{auth.error}}</p></sc-if>
+<button class="btn grad full" type="submit">Save new password</button>
 </form>
 </sc-if>
 
@@ -68,6 +81,7 @@
 <div class="fld"><label for="se">Email</label><input id="se" class="in" type="email" autocomplete="email" placeholder="you@example.com" value="{{auth.email}}" onChange="{{f.authEmail}}"></div>
 <div class="fld"><label for="sp">Password</label><input id="sp" class="in" type="password" autocomplete="new-password" placeholder="At least 6 characters" value="{{auth.password}}" onChange="{{f.authPassword}}"></div>
 <sc-if value="{{auth.hasError}}" hint-placeholder-val="{{ false }}"><p class="err" role="alert">{{auth.error}}</p></sc-if>
+<sc-if value="{{auth.hasInfo}}" hint-placeholder-val="{{ false }}"><p class="info" role="status">{{auth.info}}</p></sc-if>
 <button class="btn grad full" type="submit">{{auth.signupLabel}}</button>
 <p class="center muted">Already registered? <button type="button" class="lnk" onClick="{{toLogin}}">Log in</button></p>
 </form>
@@ -712,6 +726,14 @@
 </div>
 </sc-if>
 
+<!-- ================= LOADING + TOAST (live mode) ================= -->
+<sc-if value="{{loading}}" hint-placeholder-val="{{ false }}">
+<main class="splash" role="status" aria-live="polite"><img class="minilogo" src="assets/collabz-logo.png" alt="Collabz" style="height: 40px"><span class="spinner" aria-hidden="true"></span><p class="muted">Loading Collabz…</p></main>
+</sc-if>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{ false }}">
+<div class="{{toast.cls}}" role="alert">{{toast.text}}</div>
+</sc-if>
+
 <!-- ================= COIN POP ================= -->
 <sc-if value="{{pp.show}}" hint-placeholder-val="{{ false }}">
 <div class="pop" role="status" aria-live="polite">
@@ -732,11 +754,16 @@
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
 <script src="js/runtime.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="js/config.js"></script>
 <script src="js/app.js"></script>
+<script src="js/live.js"></script>
 <script>
-  // Open a specific screen with ?screen=<name>, e.g. index.html?screen=fan-showday
-  var start = new URLSearchParams(location.search).get('screen') || 'login';
-  mountDC(Component, document.getElementById('root'), document.getElementById('app-template'), { start: start });
+  // Live app by default (Supabase). Add ?screen=<name> to preview a screen with demo data,
+  // e.g. index.html?screen=fan-showday (see README for the list).
+  var demoScreen = new URLSearchParams(location.search).get('screen');
+  mountDC(Component, document.getElementById('root'), document.getElementById('app-template'),
+    demoScreen ? { start: demoScreen } : { start: 'login', live: true });
 </script>
 </body>
 </html>

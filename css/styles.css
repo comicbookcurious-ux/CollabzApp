@@ -320,3 +320,10 @@ select.in{appearance:auto}
 @keyframes halo{from{transform:scale(.3);opacity:0}to{transform:scale(1.15);opacity:1}}
 @keyframes fadeio{0%{opacity:0}7%{opacity:1}85%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+
+/* live mode: loading screen and toast messages */
+.splash{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}
+.spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--a1);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:120;max-width:min(520px,calc(100% - 32px));padding:14px 18px;border-radius:14px;background:#b4233f;color:#fff;font-weight:600;font-size:14px;line-height:1.4;box-shadow:0 18px 40px rgba(0,0,0,.35);animation:rise .25s ease both}
+.toast.ok{background:#1f1240;border:1px solid rgba(255,255,255,.18)}
