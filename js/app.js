@@ -225,7 +225,23 @@ class Component extends DCLogic {
       if (!cur || cur.v !== v) db.votes.push({ sid: sid, uid: meId, v: v });
     });
   }
-  openArtist(id, tab, open, sb) { this.go('artist', { viewing: id, tab: tab || 'challenges', open: open || null, sb: sb || { cat: 'challenge', sel: '' } }); }
+  // Remember the last artist page a fan was on (per device), so logging back in returns there.
+  rememberArtist(id) {
+    const me = this.state.db.users[this.state.me];
+    if (!me || me.role !== 'fan') return;
+    try { localStorage.setItem('collabz:lastArtist:' + me.id, JSON.stringify({ id: id, at: Date.now() })); } catch (e) {}
+  }
+  lastArtistFor(u) {
+    const db = this.state.db, cands = [];
+    try { const v = JSON.parse(localStorage.getItem('collabz:lastArtist:' + u.id) || 'null'); if (v && v.id) cands.push(v); } catch (e) {}
+    db.subs.filter(x => x.uid === u.id).forEach(x => { const c = db.challenges.find(y => y.id === x.cid); if (c) cands.push({ id: c.aid, at: x.at }); });
+    db.entries.filter(x => x.uid === u.id).forEach(x => { const l = db.lotteries.find(y => y.id === x.lid); if (l) cands.push({ id: l.aid, at: x.at }); });
+    const best = cands.filter(c => db.users[c.id] && db.users[c.id].role === 'artist').sort((a, b) => b.at - a.at)[0];
+    if (best) return best.id;
+    const followed = (u.following || []).filter(id => db.users[id] && db.users[id].role === 'artist');
+    return followed.length ? followed[followed.length - 1] : null;
+  }
+  openArtist(id, tab, open, sb) { this.rememberArtist(id); this.go('artist', { viewing: id, tab: tab || 'challenges', open: open || null, sb: sb || { cat: 'challenge', sel: '' } }); }
   openProfile(id) { if (!this.state.db.users[id]) return; this.go('profile', { profileId: id }); }
   home() {
     const s = this.state, me = s.db.users[s.me]; if (!me) return;
@@ -249,7 +265,12 @@ class Component extends DCLogic {
     const u = this.state.db.users[id]; if (!u) return;
     const base = { me: id, auth: this.blankAuth(), modal: null, open: null, ans: {}, q: '', chatWith: null, hist: [] };
     if (u.role === 'artist') this.go('artist', Object.assign(base, { viewing: id, tab: 'challenges', sb: { cat: 'challenge', sel: '' } }));
-    else this.go('pickArtist', Object.assign(base, { genre: u.genre || 'music', viewing: null }));
+    else {
+      // Fans land straight back on the last artist they collaborated with (no Back button: history starts here)
+      const last = this.lastArtistFor(u);
+      if (last) this.go('artist', Object.assign(base, { viewing: last, tab: 'challenges', sb: { cat: 'challenge', sel: '' } }));
+      else this.go('pickArtist', Object.assign(base, { genre: u.genre || 'music', viewing: null }));
+    }
   }
   doLogin(e) {
     if (e) e.preventDefault();
@@ -580,7 +601,8 @@ class Component extends DCLogic {
     return {
       votable: c.type !== 'mc', score: score, upCount: up, downCount: down,
       myUp: !!(mine && mine.v > 0), myDown: !!(mine && mine.v < 0),
-      upCls: mine && mine.v > 0 ? 'vbtn on up' : 'vbtn', downCls: mine && mine.v < 0 ? 'vbtn on down' : 'vbtn',
+      upCls: mine && mine.v > 0 ? 'vbtn up on' : 'vbtn up', downCls: mine && mine.v < 0 ? 'vbtn down on' : 'vbtn down',
+      scoreCls: score > 0 ? 'vscore pos' : (score < 0 ? 'vscore neg' : 'vscore'),
       noVote: !canVote, voteHint: isMine ? 'You can’t vote on your own submission' : (canVote ? '' : 'Fans vote on submissions'),
       scoreText: (score > 0 ? '+' : '') + score + ' score',
       up: () => canVote && this.vote(x.id, 1), down: () => canVote && this.vote(x.id, -1)
