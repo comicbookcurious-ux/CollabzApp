@@ -25,6 +25,7 @@
 <button class="logo" onClick="{{goHome}}" aria-label="Collabz home"><img src="assets/collabz-logo.png" alt="Collabz"></button>
 <nav class="nav" aria-label="Main">
 <sc-if value="{{hdr.isFan}}" hint-placeholder-val="{{ false }}"><button class="ib" onClick="{{goExplore}}" aria-label="Find artists: change genre or search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><span class="lbl">Find artists</span></button></sc-if>
+<sc-if value="{{hdr.isArtist}}" hint-placeholder-val="{{ false }}"><button class="ib" onClick="{{goSearch}}" aria-label="Search artists and fans"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><span class="lbl">Search</span></button></sc-if>
 <button class="ib" onClick="{{goChat}}" aria-label="Messages"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="lbl">Chat</span><sc-if value="{{hdr.hasMsg}}" hint-placeholder-val="{{ false }}"><span class="badge">{{hdr.msg}}</span></sc-if></button>
 <button class="ib" onClick="{{openNotifs}}" aria-label="Notifications"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></svg><sc-if value="{{hdr.hasNotif}}" hint-placeholder-val="{{ false }}"><span class="badge">{{hdr.notif}}</span></sc-if></button>
 <button class="avbtn" onClick="{{goMyProfile}}" aria-label="Your profile" style="margin-left: 6px"><span class="av a36" style="background: {{hdr.av.bg}}"><sc-if value="{{hdr.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{hdr.av.img}}" alt=""></sc-if><sc-if value="{{hdr.av.noImg}}" hint-placeholder-val="{{ true }}">{{hdr.av.ini}}</sc-if></span></button>
@@ -162,6 +163,33 @@
 <button type="button" class="btn grad push" onClick="{{suNext}}">{{su.nextLabel}}</button>
 </div>
 </section>
+</main>
+</sc-if>
+
+<!-- ================= SEARCH (artists) ================= -->
+<sc-if value="{{scr.search}}" hint-placeholder-val="{{ false }}">
+<main class="wrap narrow page">
+<div class="stack" style="gap: 6px">
+<h1 class="h1">Search</h1>
+<p class="muted">Find artists and fans on Collabz. Open a profile to follow or message them.</p>
+</div>
+<div class="search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><input class="in" type="search" aria-label="Search artists and fans" placeholder="Search artists and fans by name" value="{{srch.q}}" onChange="{{srch.setQ}}"></div>
+<sc-if value="{{srch.hasQ}}" hint-placeholder-val="{{ false }}">
+<div class="card people" style="padding: 8px">
+<sc-if value="{{srch.noResults}}" hint-placeholder-val="{{ false }}"><p class="muted" style="padding: 10px">No artists or fans match “{{srch.q}}”.</p></sc-if>
+<sc-for list="{{srch.results}}" as="r" hint-placeholder-count="3">
+<button type="button" class="person" onClick="{{r.go}}"><span class="av a40" style="background: {{r.av.bg}}"><sc-if value="{{r.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.img}}" alt=""></sc-if><sc-if value="{{r.av.noImg}}" hint-placeholder-val="{{ true }}">{{r.av.ini}}</sc-if></span><span class="nm" style="flex: 1"><strong>{{r.name}}</strong><span class="muted sm">{{r.sub}}</span></span><span class="rolechip">{{r.role}}</span></button>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{srch.noQ}}" hint-placeholder-val="{{ true }}">
+<p class="goldlabel">Artists on Collabz</p>
+<div class="card people" style="padding: 8px">
+<sc-for list="{{srch.suggested}}" as="r" hint-placeholder-count="3">
+<button type="button" class="person" onClick="{{r.go}}"><span class="av a40" style="background: {{r.av.bg}}"><sc-if value="{{r.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.img}}" alt=""></sc-if><sc-if value="{{r.av.noImg}}" hint-placeholder-val="{{ true }}">{{r.av.ini}}</sc-if></span><span class="nm" style="flex: 1"><strong>{{r.name}}</strong><span class="muted sm">{{r.sub}}</span></span><span class="rolechip">{{r.role}}</span></button>
+</sc-for>
+</div>
+</sc-if>
 </main>
 </sc-if>
 
@@ -364,7 +392,7 @@
 <div><button type="button" class="btn grad" disabled="{{b.notReady}}" onClick="{{b.submit}}">Submit &amp; earn <img src="{{b.coinImg}}" alt="">{{b.rw}}</button></div>
 </div>
 </sc-if>
-<sc-if value="{{b.visitor}}" hint-placeholder-val="{{ false }}"><p class="muted sm">Only fans can take part in challenges.</p></sc-if>
+<sc-if value="{{b.visitor}}" hint-placeholder-val="{{ false }}"><p class="note">You're viewing as an artist. Only fans can take part in challenges, but you can follow and message {{b.artistName}}.</p></sc-if>
 
 <sc-if value="{{b.showGallery}}" hint-placeholder-val="{{ false }}">
 <div class="stack" style="gap: 10px">
@@ -425,7 +453,7 @@
 <sc-if value="{{b.canEnter}}" hint-placeholder-val="{{ false }}"><div class="row"><button type="button" class="btn grad" onClick="{{b.enter}}">{{b.enterLabel}}</button><span class="muted sm">You have {{b.tickets}} tickets</span></div></sc-if>
 <sc-if value="{{b.short}}" hint-placeholder-val="{{ false }}"><p class="note">You need {{b.cost}} tickets for an entry and you have {{b.tickets}}.</p></sc-if>
 <sc-if value="{{b.fan}}" hint-placeholder-val="{{ false }}"><p class="muted sm">Lottery entries are final. Tickets can't be refunded.</p></sc-if>
-<sc-if value="{{b.visitor}}" hint-placeholder-val="{{ false }}"><p class="muted sm">Only fans can enter lotteries.</p></sc-if>
+<sc-if value="{{b.visitor}}" hint-placeholder-val="{{ false }}"><p class="note">You're viewing as an artist. Only fans can enter lotteries.</p></sc-if>
 </div>
 </sc-if>
 </article>
