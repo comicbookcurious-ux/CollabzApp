@@ -20,7 +20,7 @@ class Component extends DCLogic {
     const as = (me, extra) => Object.assign(S, { me: me }, extra || {});
     const art = (me, viewing, tab, extra) => as(me, Object.assign({ screen: 'artist', viewing: viewing, tab: tab, open: null }, extra || {}));
     const blankSoc = { facebook: '', instagram: '', x: '', tiktok: '', youtube: '' };
-    const newUser = (id, role, name, email) => { db.users[id] = { id: id, role: role, name: name, email: email, password: 'demo1234', genre: '', bio: '', location: '', avatar: null, video: null, socials: Object.assign({}, blankSoc), coins: role === 'artist' ? { silver: 50, gold: 20, green: 10 } : { silver: 10, gold: 10, green: 0 }, tickets: role === 'artist' ? 0 : 10, followers: [], following: [], theme: 'default' }; };
+    const newUser = (id, role, name, email) => { db.users[id] = { id: id, role: role, name: name, email: email, password: 'demo1234', genre: '', bio: '', location: '', avatar: null, video: null, socials: Object.assign({}, blankSoc), coins: role === 'artist' ? { silver: 50, gold: 20, green: 10 } : { silver: 10, gold: 10, green: 0 }, tickets: role === 'artist' ? 0 : 10, followers: [], following: [], theme: 'default', termsAccepted: true }; };
     switch (k) {
       case 'signup': S.auth = Object.assign(this.blankAuth('signup', 'artist'), { name: 'Ari Sol', email: 'ari@example.com' }); break;
       case 'forgot': S.auth = Object.assign(this.blankAuth('forgot'), { email: 'jess@collabz.app', info: 'If an account exists for jess@collabz.app, a password reset link is on its way. Check your inbox.' }); break;
@@ -125,7 +125,7 @@ class Component extends DCLogic {
   // ---------- seed data (demo accounts) ----------
   seed() {
     const t = Date.now(), H = 3600000, D = 86400000;
-    const base = (o) => Object.assign({ avatar: null, video: null, location: '', bio: '', socials: { facebook: '', instagram: '', x: '', tiktok: '', youtube: '' }, followers: [], following: [], theme: 'default', genre: '', password: 'demo1234' }, o);
+    const base = (o) => Object.assign({ avatar: null, video: null, location: '', bio: '', socials: { facebook: '', instagram: '', x: '', tiktok: '', youtube: '' }, followers: [], following: [], theme: 'default', genre: '', password: 'demo1234', termsAccepted: true }, o);
     const AC = () => ({ silver: 50, gold: 20, green: 10 });
     const users = {
       a1: base({ id: 'a1', role: 'artist', name: 'Luna Vale', email: 'luna@collabz.app', genre: 'music', bio: 'Dream-pop singer and songwriter. Making the next record with you.', location: 'Perth, WA', socials: { facebook: 'https://facebook.com', instagram: 'https://instagram.com', x: '', tiktok: 'https://tiktok.com', youtube: 'https://youtube.com' }, coins: AC(), tickets: 0, followers: ['f1', 'f2', 'a2'], following: ['a3', 'a2'] }),
@@ -288,9 +288,9 @@ class Component extends DCLogic {
     if (a.password.length < 6) return this.authErr('Your password needs at least 6 characters.');
     if (Object.values(this.state.db.users).some(x => x.email.toLowerCase() === em)) return this.authErr('An account with this email already exists. Log in instead.');
     const artist = a.role === 'artist', id = this.uid(artist ? 'a' : 'f');
-    const u = { id: id, role: a.role, name: nm, email: em, password: a.password, genre: '', bio: '', location: '', avatar: null, video: null, socials: { facebook: '', instagram: '', x: '', tiktok: '', youtube: '' }, coins: artist ? { silver: 50, gold: 20, green: 10 } : { silver: 10, gold: 10, green: 0 }, tickets: artist ? 0 : 10, followers: [], following: [], theme: 'default' };
+    const u = { id: id, role: a.role, name: nm, email: em, password: a.password, genre: '', bio: '', location: '', avatar: null, video: null, socials: { facebook: '', instagram: '', x: '', tiktok: '', youtube: '' }, coins: artist ? { silver: 50, gold: 20, green: 10 } : { silver: 10, gold: 10, green: 0 }, tickets: artist ? 0 : 10, followers: [], following: [], theme: 'default', termsAccepted: false };
     const setup = { role: a.role, step: 0, err: '', genres: [], name: nm, bio: '', location: '', avatar: null, video: null, videoName: '', facebook: '', instagram: '', x: '', tiktok: '', youtube: '' };
-    this.mut(db => { db.users[id] = u; this.notify(db, id, artist ? 'Welcome to Collabz! Your starter balance is 50 silver, 20 gold and 10 green coins.' : 'Welcome to Collabz! You start with 10 silver, 10 gold and 10 tickets.'); }, { me: id, screen: 'setup', setup: setup, auth: this.blankAuth() });
+    this.mut(db => { db.users[id] = u; this.notify(db, id, artist ? 'Welcome to Collabz! Your starter balance is 50 silver, 20 gold and 10 green coins.' : 'Welcome to Collabz! You start with 10 silver, 10 gold and 10 tickets.'); }, { me: id, screen: 'terms', termsOk: false, setup: setup, auth: this.blankAuth() });
   }
   doForgot(e) {
     if (e) e.preventDefault();
@@ -539,6 +539,31 @@ class Component extends DCLogic {
     }, { reply: '' });
   }
 
+  // ---------- agreement ----------
+  termsVersion() { return 'Version 1 · October 2026'; }
+  termsSections(role) {
+    const common = [
+      ['1. Your account', 'Use your real name or a name that represents you, keep your password private, and keep your details up to date. If you are under 18, you need permission from a parent or guardian to use Collabz. You are responsible for activity on your account.'],
+      ['2. Coins, tickets and levels', 'Silver, gold and green coins, tickets, XP and levels are rewards inside Collabz only. They have no cash value and cannot be sold, transferred or exchanged for money. We may correct balances that change because of errors, bugs or misuse.'],
+      ['3. Your content', 'You keep ownership of what you post: submissions, messages, forum posts, photos and videos. By posting, you allow Collabz and the artist whose challenge you joined to show it in the app and to feature it with credit to you. Only post content you created or have permission to share.'],
+      ['4. Community guidelines', 'Be respectful. No harassment, bullying, hate speech, threats, sexual or graphic content, spam, scams or impersonation. Do not post anything illegal or anything that shares someone else\u2019s private information. We may remove content or suspend accounts that break these rules.'],
+      ['5. Lotteries and prizes', 'Lottery entries use tickets and cannot be refunded. Winners are drawn at random, and each entry is one chance. Prizes and experiences are offered and described by the artist. The Collabz team contacts winners by email. Prizes are not transferable unless the artist says so.'],
+      ['6. Privacy', 'We store your profile, activity, uploads and messages to run Collabz. Your name, photo, bio, email address, level, follows, submissions and votes are visible to other users. Messages are only visible to you and the person you message.'],
+      ['7. Deleting your account', 'You can delete your account at any time from Edit profile. Deleting is permanent: your profile, coins, tickets, level and messages are removed and cannot be recovered.'],
+      ['8. Changes to these terms', 'We may update these terms as Collabz grows. If we make important changes, we will tell you in the app before they take effect.']
+    ];
+    const fan = [['For fans', 'Your submissions must be your own work. You can take part in each challenge once. Artists choose challenge winners, and their decision is final once a prize has been claimed.']];
+    const artist = [['For creators and artists', 'You are responsible for the challenges, Showday events and lotteries you post, and for delivering the prizes and experiences you offer. Describe prizes honestly and clearly. Make sure your promotions, competitions and lotteries follow the laws and permit rules where you and your fans live.']];
+    return common.concat(role === 'artist' ? artist : fan).map(x => ({ h: x[0], p: x[1] }));
+  }
+  acceptTerms() {
+    if (!this.state.termsOk) return;
+    const id = this.state.me;
+    this.mut(db => { if (db.users[id]) db.users[id].termsAccepted = true; });
+    if (this.state.setup) this.go('setup', { termsOk: false, hist: [] }); else this.enter(id);
+  }
+  declineTerms() { this.logout(); this.setState({ auth: Object.assign(this.blankAuth('login'), { info: 'You need to agree to the Terms of Use to use Collabz. Log in again whenever you\u2019re ready.' }) }); }
+
   // ---------- fan levels ----------
   // XP comes from activity, so it is the same on every device. Levels 1-6, each with its own badge.
   levelThresholds() { return [0, 100, 250, 500, 900, 1500]; }
@@ -682,8 +707,8 @@ class Component extends DCLogic {
     const s = this.state, db = s.db, me = db.users[s.me] || null;
     const sc = s.screen;
     const A = sc === 'artist' ? db.users[s.viewing] : null;
-    const scr = { search: sc === 'search', auth: sc === 'auth' || (!me && sc !== 'auth'), setup: sc === 'setup' && !!s.setup, genre: sc === 'pickGenre', artists: sc === 'pickArtist', artist: !!A, profile: sc === 'profile' && !!db.users[s.profileId], chat: sc === 'chat' };
-    if (!me) { scr.search = scr.setup = scr.genre = scr.artists = scr.artist = scr.profile = scr.chat = false; }
+    const scr = { terms: sc === 'terms', search: sc === 'search', auth: sc === 'auth' || (!me && sc !== 'auth'), setup: sc === 'setup' && !!s.setup, genre: sc === 'pickGenre', artists: sc === 'pickArtist', artist: !!A, profile: sc === 'profile' && !!db.users[s.profileId], chat: sc === 'chat' };
+    if (!me) { scr.terms = scr.search = scr.setup = scr.genre = scr.artists = scr.artist = scr.profile = scr.chat = false; }
     const isOwner = !!(A && me && A.id === me.id), isFan = !!(A && me && me.role === 'fan'), isVisitor = !!(A && me && !isOwner && !isFan);
     const ctx = { me: me, isOwner: isOwner, isFan: isFan, isVisitor: isVisitor };
 
@@ -757,6 +782,13 @@ class Component extends DCLogic {
       title: this.genreName(s.genre) + ' artists', genre: this.genreName(s.genre), has: inGenre.length > 0, none: inGenre.length === 0,
       chips: this.genres().map(g => ({ label: g[1], on: s.genre === g[0], cls: s.genre === g[0] ? 'chip on' : 'chip', pick: () => this.pickGenre(g[0]) })),
       artists: inGenre.map(u => ({ name: u.name, av: this.av(u), bio: u.bio || 'No bio yet.', sub: [u.location, this.plural(u.followers.length, 'follower', 'followers')].filter(Boolean).join(' · '), open: () => this.openArtist(u.id) }))
+    };
+
+    // agreement
+    const tm = {
+      roleLabel: me && me.role === 'artist' ? 'Creator / Artist agreement' : 'Fan agreement', version: this.termsVersion(),
+      sections: this.termsSections(me ? me.role : 'fan'), ok: !!s.termsOk, notOk: !s.termsOk, err: s.termsErr || '', hasErr: !!s.termsErr,
+      toggle: (e) => this.setState({ termsOk: !!e.target.checked, termsErr: '' }), accept: () => this.acceptTerms(), decline: () => this.declineTerms()
     };
 
     // search (artists): find artists and fans
@@ -926,10 +958,10 @@ class Component extends DCLogic {
     if (md.show) {
       const k = M.kind;
       md = Object.assign(md, {
-        d: M, isCh: k === 'ch', isEv: k === 'ev', isLt: k === 'lt', isConfirm: k === 'confirm', isPeople: k === 'people', isNotifs: k === 'notifs', isMe: k === 'me', isEdit: k === 'edit', isDelete: k === 'delete',
+        d: M, isCh: k === 'ch', isEv: k === 'ev', isLt: k === 'lt', isConfirm: k === 'confirm', isPeople: k === 'people', isNotifs: k === 'notifs', isMe: k === 'me', isEdit: k === 'edit', isDelete: k === 'delete', delStage1: k === 'delete' && (M.stage || 1) === 1, delStage2: k === 'delete' && M.stage === 2,
         hasErr: !!M.err, meArtist: me.role === 'artist', meName: me.name, themeHint: me.role === 'artist' ? ', page theme' : '',
         hasActions: ['ch', 'ev', 'lt', 'confirm', 'edit', 'delete'].includes(k), cancelLabel: k === 'confirm' ? 'Keep it' : 'Cancel', back: () => this.setState({ modal: k === 'delete' ? M.backTo : null }),
-        okCls: (k === 'confirm' || k === 'delete') ? 'btn danger' : 'btn grad', okDisabled: k === 'delete' && (M.typed || '').trim() !== 'DELETE'
+        okCls: (k === 'confirm' || k === 'delete') ? 'btn danger' : 'btn grad', okDisabled: k === 'delete' && M.stage === 2 && (M.typed || '').trim() !== 'DELETE'
       });
       if (k === 'ch') Object.assign(md, {
         title: M.id ? 'Edit challenge' : (M.ev ? 'Add Showday challenge' : 'Create challenge'), okLabel: M.id ? 'Save changes' : 'Create challenge', ok: () => this.saveCh(), isMCType: M.type === 'mc',
@@ -949,9 +981,11 @@ class Component extends DCLogic {
         genreCount: (M.genres || []).length + ' of 3', videoLabel: M.video ? (M.videoName ? 'Chosen: ' + M.videoName : 'Replace welcome video') : 'Upload a welcome video',
         themes: Object.entries(this.themes()).map(([key, t]) => ({ name: t.name, kind: t.kind, a1: t.a1, a2: t.a2, style: 'background: ' + t.bg, on: M.theme === key, cls: M.theme === key ? 'sw on' : 'sw', pick: () => this.setM('theme', key) })),
         socials: this.socialDefs().map(x => ({ label: x[1], ph: x[1] + ' link', val: M[x[0]] || '', set: val(v => this.setM(x[0], v)) })),
-        askDelete: () => this.setState({ modal: { kind: 'delete', typed: '', err: '', backTo: M } })
+        askDelete: () => this.setState({ modal: { kind: 'delete', stage: 1, typed: '', err: '', backTo: M } })
       });
-      if (k === 'delete') Object.assign(md, { title: 'Delete your account?', okLabel: 'Delete forever', ok: () => this.deleteAccount(), cancelLabel: 'Go back' });
+      if (k === 'delete') Object.assign(md, M.stage === 2
+        ? { title: 'Delete your account', okLabel: 'Delete forever', ok: () => this.deleteAccount(), cancelLabel: 'Keep my account' }
+        : { title: 'Delete your account', okLabel: 'Yes, continue', ok: () => this.setM('stage', 2), cancelLabel: 'No, keep my account' });
     }
 
     this.checkLevelUp(me);
@@ -961,10 +995,10 @@ class Component extends DCLogic {
     const lp = s.lvpop && !s.pop ? Object.assign({ show: true }, s.lvpop) : { show: false, bits: [] };
 
     return {
-      themeStyle: this.themeCss(themeKey), showHeader: !!me && !scr.auth && !scr.setup, scr: scr, hdr: hdr, f: f, mf: mf, auth: auth, su: su,
-      genreCards: genreCards, gp: gp, ex: ex, srch: srch, ap: ap, tabs: tabs, pn: pn, blocks: blocks, sb: sb, cm: cm, pf: pf, ch: ch, md: md, pp: pp, lp: lp,
+      themeStyle: this.themeCss(themeKey), showHeader: !!me && !scr.auth && !scr.setup && !scr.terms, scr: scr, hdr: hdr, f: f, mf: mf, auth: auth, su: su,
+      genreCards: genreCards, gp: gp, ex: ex, srch: srch, tm: tm, ap: ap, tabs: tabs, pn: pn, blocks: blocks, sb: sb, cm: cm, pf: pf, ch: ch, md: md, pp: pp, lp: lp,
       q: s.q, reply: s.reply, chatText: s.chatText,
-      nav: { canBack: !!me && !scr.auth && !scr.setup && (s.hist || []).length > 0, back: () => this.back() },
+      nav: { canBack: !!me && !scr.auth && !scr.setup && !scr.terms && (s.hist || []).length > 0, back: () => this.back() },
       goHome: () => this.home(), goExplore: () => this.go('pickGenre'), goSearch: () => this.go('search'), goCommunity: () => this.go('community'),
       goChat: () => { const meId = s.me; const mine = db.msgs.filter(m => m.from === meId || m.to === meId).sort((x, y) => y.at - x.at); const o = mine[0] ? (mine[0].from === meId ? mine[0].to : mine[0].from) : null; this.openChat(o); },
       goMyProfile: () => me && this.openProfile(me.id),

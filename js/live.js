@@ -12,7 +12,7 @@
   const orig = {};
   ['renderVals', 'doLogin', 'doSignup', 'doForgot', 'logout', 'suNext', 'pickGenre', 'toggleFollow', 'openChat', 'sendChat',
    'submit', 'cancelSub', 'claim', 'hideCard', 'pickWinner', 'unpickWinner', 'enterLottery', 'draw', 'claimLottery',
-   'saveCh', 'saveEv', 'saveLt', 'doConfirm', 'saveEdit', 'deleteAccount', 'postTopic', 'sendReply', 'suFile', 'mFile', 'ansFile', 'vote']
+   'saveCh', 'saveEv', 'saveLt', 'doConfirm', 'saveEdit', 'deleteAccount', 'postTopic', 'sendReply', 'suFile', 'mFile', 'ansFile', 'vote', 'acceptTerms', 'declineTerms']
     .forEach((k) => { orig[k] = P[k]; });
 
   const TABLES = ['profiles', 'artist_genres', 'follows', 'wallets', 'showday_events', 'challenges', 'submissions',
@@ -57,6 +57,11 @@
       const p = this.state.db.users[user.id];
       if (this._recovering) { this.setState({ screen: 'auth', auth: this.blankAuth('reset') }); return; }
       if (!p) throw new Error('Your profile could not be found. Try signing up again.');
+      const setupFor = (p) => { const s = p.socials || {}; return { role: p.role, step: 0, err: '', genres: (p.genres || []).slice(), name: p.name, bio: p.bio || '', location: p.location || '', avatar: p.avatar, video: p.video, videoName: '', facebook: s.facebook || '', instagram: s.instagram || '', x: s.x || '', tiktok: s.tiktok || '', youtube: s.youtube || '' }; };
+      if (!p.termsAccepted) {
+        this.setState({ screen: 'terms', termsOk: false, termsErr: '', auth: this.blankAuth(), setup: p.onboarded ? null : setupFor(p) });
+        return;
+      }
       if (!p.onboarded) {
         const s = p.socials || {};
         this.setState({ screen: 'setup', auth: this.blankAuth(), setup: { role: p.role, step: 0, err: '', genres: (p.genres || []).slice(), name: p.name, bio: p.bio || '', location: p.location || '', avatar: p.avatar, video: p.video, videoName: '', facebook: s.facebook || '', instagram: s.instagram || '', x: s.x || '', tiktok: s.tiktok || '', youtube: s.youtube || '' } });
@@ -100,6 +105,8 @@
       db.users[p.id] = {
         id: p.id, role: p.role, name: p.display_name, email: p.email || '', bio: p.bio || '', location: p.location || '',
         avatar: p.avatar_url || null, video: p.welcome_video_url || null, theme: p.theme || 'default', onboarded: p.onboarded,
+        // accounts from before the agreement existed (or before 003_terms.sql) count as accepted
+        termsAccepted: !('terms_accepted_at' in p) || !!p.terms_accepted_at,
         genres: genres, genre: p.role === 'artist' ? (genres[0] || '') : (p.browse_genre || ''),
         socials: { facebook: p.facebook_url || '', instagram: p.instagram_url || '', x: p.x_url || '', tiktok: p.tiktok_url || '', youtube: p.youtube_url || '' },
         followers: d.follows.filter((f) => f.following_id === p.id).map((f) => f.follower_id),
@@ -209,6 +216,22 @@
   };
 
   wrap('logout', function () { this.sb.auth.signOut(); signedOut.call(this); });
+
+  // ---------------------------------------------------------------- agreement
+  wrap('acceptTerms', async function () {
+    if (!this.state.termsOk) return;
+    const uid = this.state.me;
+    try {
+      must(await this.sb.from('profiles').update({ terms_accepted_at: new Date().toISOString(), terms_version: this.termsVersion() }).eq('id', uid));
+      await reload.call(this);
+      if (this.state.setup) this.go('setup', { termsOk: false, hist: [] }); else this.enter(uid);
+    } catch (e) { this.setState({ termsErr: (e && e.message) || 'Could not save your agreement. Please try again.' }); }
+  });
+  wrap('declineTerms', async function () {
+    await this.sb.auth.signOut();
+    signedOut.call(this);
+    this.setState({ auth: Object.assign(this.blankAuth('login'), { info: 'You need to agree to the Terms of Use to use Collabz. Log in again whenever you\u2019re ready.' }) });
+  });
 
   // ---------------------------------------------------------------- onboarding
   wrap('suNext', async function () {
@@ -424,7 +447,7 @@
     v.auth.isReset = this.state.auth.mode === 'reset';
     v.doReset = (e) => this.doReset(e);
     if (v.loading) {
-      v.scr = { search: false, auth: false, setup: false, genre: false, artists: false, artist: false, profile: false, chat: false };
+      v.scr = { terms: false, search: false, auth: false, setup: false, genre: false, artists: false, artist: false, profile: false, chat: false };
       v.showHeader = false;
       v.cm = { show: false };
       v.md = { show: false };

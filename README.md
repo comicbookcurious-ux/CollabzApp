@@ -94,3 +94,9 @@ XP is calculated from saved activity in `levelInfo()` in `js/app.js`, so it's th
 | Follow an artist / vote on a submission | 5 / 2 |
 
 Level thresholds: 0, 100, 250, 500, 900, 1500 XP (`levelThresholds()`).
+
+## Agreement and account deletion
+
+- New sign-ups see the Terms of Use (fan or creator version) and must agree before onboarding. The text lives in `termsSections()` in `js/app.js`; have it reviewed before launch.
+- Run `supabase/003_terms_agreement.sql` once: it adds `terms_accepted_at` / `terms_version` to profiles and marks every existing account as agreed (`legacy`).
+- Delete account: Edit profile → Delete account… → step 1 "Are you sure?" → step 2 type DELETE.

@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20261015i">
+<link rel="stylesheet" href="css/styles.css?v=20261015k">
 </head>
 <body>
 <div id="root"></div>
@@ -162,6 +162,27 @@
 <sc-if value="{{su.canBack}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn ghost" onClick="{{suBack}}">Back</button></sc-if>
 <button type="button" class="btn grad push" onClick="{{suNext}}">{{su.nextLabel}}</button>
 </div>
+</section>
+</main>
+</sc-if>
+
+<!-- ================= AGREEMENT (new sign-ups) ================= -->
+<sc-if value="{{scr.terms}}" hint-placeholder-val="{{ false }}">
+<main class="wrap narrow page" style="padding-top: 28px">
+<img class="minilogo" src="assets/collabz-logo.png" alt="Collabz" style="height: 30px; width: auto; align-self: flex-start">
+<section class="card stack" style="padding: 24px">
+<div class="stack" style="gap: 6px">
+<p class="eyebrow" style="margin: 0">{{tm.roleLabel}}</p>
+<h1 class="h1">Before you start</h1>
+<p class="muted">Please read the Collabz Terms of Use and Community Guidelines. You need to agree to them to use Collabz.</p>
+</div>
+<div class="termsbox" tabindex="0" role="region" aria-label="Collabz Terms of Use">
+<p class="muted sm" style="margin-bottom: 10px">{{tm.version}}</p>
+<sc-for list="{{tm.sections}}" as="x" hint-placeholder-count="6"><h2 class="h3">{{x.h}}</h2><p>{{x.p}}</p></sc-for>
+</div>
+<label class="agree"><input type="checkbox" checked="{{tm.ok}}" onChange="{{tm.toggle}}"><span>I have read and agree to the Collabz Terms of Use and Community Guidelines.</span></label>
+<sc-if value="{{tm.hasErr}}" hint-placeholder-val="{{ false }}"><p class="err" role="alert">{{tm.err}}</p></sc-if>
+<div class="actions"><button type="button" class="btn ghost" onClick="{{tm.decline}}">Decline</button><button type="button" class="btn grad push" disabled="{{tm.notOk}}" onClick="{{tm.accept}}">Agree and continue</button></div>
 </section>
 </main>
 </sc-if>
@@ -769,15 +790,22 @@
 <div class="danger-zone">
 <span class="flabel">Delete account</span>
 <p class="muted sm">Permanently removes your profile, follows and messages from Collabz.</p>
-<div><button type="button" class="btn danger sm" onClick="{{md.askDelete}}">Delete my account</button></div>
+<div><button type="button" class="btn danger sm" onClick="{{md.askDelete}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"></path></svg>Delete account…</button></div>
 </div>
 </div>
 </sc-if>
 
 <sc-if value="{{md.isDelete}}" hint-placeholder-val="{{ false }}">
 <div class="stack">
-<p>This permanently deletes <strong>{{md.meName}}</strong> and can't be undone. Your coins, tickets and wins will be lost.</p>
+<sc-if value="{{md.delStage1}}" hint-placeholder-val="{{ true }}">
+<div class="delwarn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"></path></svg><div class="grow"><p><strong>Are you sure you want to delete your account?</strong></p><p class="sm">Step 1 of 2</p></div></div>
+<ul class="dellist"><li>Your profile, follows and messages will be removed.</li><li>Your coins, tickets, level and wins will be lost.</li><li>This can't be undone.</li></ul>
+</sc-if>
+<sc-if value="{{md.delStage2}}" hint-placeholder-val="{{ false }}">
+<p class="muted sm">Step 2 of 2 · Final check</p>
+<p>This permanently deletes <strong>{{md.meName}}</strong> from Collabz.</p>
 <div class="fld"><label for="dct">Type DELETE to confirm</label><input id="dct" class="in" autocomplete="off" value="{{md.d.typed}}" onChange="{{mf.typed}}"></div>
+</sc-if>
 </div>
 </sc-if>
 
@@ -831,11 +859,11 @@
 </template>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
-<script src="js/runtime.js?v=20261015i"></script>
+<script src="js/runtime.js?v=20261015k"></script>
 <script src="vendor/supabase.js"></script>
-<script src="js/config.js?v=20261015i"></script>
-<script src="js/app.js?v=20261015i"></script>
-<script src="js/live.js?v=20261015i"></script>
+<script src="js/config.js?v=20261015k"></script>
+<script src="js/app.js?v=20261015k"></script>
+<script src="js/live.js?v=20261015k"></script>
 <script>
   // Live app by default (Supabase). Add ?screen=<name> to preview a screen with demo data,
   // e.g. index.html?screen=fan-showday (see README for the list).
