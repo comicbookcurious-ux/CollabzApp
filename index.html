@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20261015h">
+<link rel="stylesheet" href="css/styles.css?v=20261015i">
 </head>
 <body>
 <div id="root"></div>
@@ -247,6 +247,13 @@
 <button type="button" class="avbtn" onClick="{{ap.goMe}}" aria-label="Your profile"><span class="av a56" style="background: {{ap.meAv.bg}}"><sc-if value="{{ap.meAv.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{ap.meAv.img}}" alt=""></sc-if><sc-if value="{{ap.meAv.noImg}}" hint-placeholder-val="{{ true }}">{{ap.meAv.ini}}</sc-if></span></button>
 <div class="grow">
 <h2 class="h3"><button type="button" class="lnk plain" onClick="{{ap.goMe}}" style="font: inherit">{{ap.meName}}</button></h2>
+<sc-if value="{{ap.hasLv}}" hint-placeholder-val="{{ false }}">
+<button type="button" class="lvl" onClick="{{ap.goMe}}" aria-label="{{ap.lv.label}}, {{ap.lv.progressText}}">
+<img class="lvlicon" src="{{ap.lv.icon}}" alt="">
+<span class="lvlbody"><span class="lvltop"><strong>{{ap.lv.label}}</strong><span class="muted sm">{{ap.lv.progressText}}</span></span>
+<span class="lvlbar" aria-hidden="true"><span style="{{ap.lv.barStyle}}"></span></span></span>
+</button>
+</sc-if>
 <div class="coins">
 <span class="coin" title="Silver coins"><img src="assets/coin-silver.png" alt="Silver coins">{{ap.coins.silver}}</span>
 <span class="coin" title="Gold coins"><img src="assets/coin-gold.png" alt="Gold coins">{{ap.coins.gold}}</span>
@@ -605,12 +612,29 @@
 </div>
 </sc-if>
 <div class="acts">
-<sc-if value="{{pf.isMe}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn grad" onClick="{{openEdit}}">Edit profile</button><button type="button" class="btn ghost" onClick="{{logout}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>Log out</button></sc-if>
+<sc-if value="{{pf.isMe}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn grad" onClick="{{openEdit}}">Edit profile</button><button type="button" class="btn logout" onClick="{{logout}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>Log out</button></sc-if>
 <sc-if value="{{pf.notMe}}" hint-placeholder-val="{{ true }}"><button type="button" class="{{pf.followCls}}" onClick="{{pf.follow}}">{{pf.followLabel}}</button><button type="button" class="btn ghost" onClick="{{pf.message}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>Message</button></sc-if>
 <sc-if value="{{pf.isArtist}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn ghost" onClick="{{pf.openPage}}">Open artist page</button></sc-if>
 </div>
 <sc-if value="{{pf.isMe}}" hint-placeholder-val="{{ false }}"><p class="muted sm">Tip: tap your photo for profile options.</p></sc-if>
 </section>
+<sc-if value="{{pf.hasLv}}" hint-placeholder-val="{{ false }}">
+<section class="card lvlcard" aria-label="Fan level">
+<img class="lvlbig" src="{{pf.lv.icon}}" alt="{{pf.lv.label}} badge">
+<div class="grow">
+<p class="eyebrow" style="margin: 0">Fan level</p>
+<h2 class="h2">{{pf.lv.label}}</h2>
+<span class="lvlbar big" aria-hidden="true"><span style="{{pf.lv.barStyle}}"></span></span>
+<p class="muted sm">{{pf.lv.progressText}} · {{pf.lv.toNext}}</p>
+<div class="lvlsteps" aria-label="All levels"><sc-for list="{{pf.lv.steps}}" as="x" hint-placeholder-count="6"><span class="{{x.cls}}" title="{{x.title}}"><img src="{{x.icon}}" alt="{{x.title}}"></span></sc-for></div>
+</div>
+<sc-if value="{{pf.isMe}}" hint-placeholder-val="{{ false }}">
+<details class="xphow"><summary>How to earn XP</summary>
+<ul><li>Take part in a challenge: <strong>+20 XP</strong></li><li>Take part in a Showday challenge: <strong>+30 XP</strong></li><li>Win a challenge or lottery: <strong>+50 XP</strong></li><li>Each lottery entry: <strong>+10 XP</strong></li><li>Start a community topic: <strong>+10 XP</strong> · reply: <strong>+5 XP</strong></li><li>Follow an artist: <strong>+5 XP</strong> · vote on a submission: <strong>+2 XP</strong></li></ul>
+</details>
+</sc-if>
+</section>
+</sc-if>
 <section class="card stack">
 <h2 class="h3">Recent activity</h2>
 <sc-if value="{{pf.noActs}}" hint-placeholder-val="{{ false }}"><p class="muted">No activity yet.</p></sc-if>
@@ -720,7 +744,7 @@
 <div class="people">
 <button type="button" class="person" onClick="{{openEdit}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg><span class="nm"><strong>Edit profile</strong><span class="muted sm">Photo, details, social links{{md.themeHint}}</span></span></button>
 <sc-if value="{{md.meArtist}}" hint-placeholder-val="{{ false }}"><button type="button" class="person" onClick="{{goHome}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span class="nm"><strong>Open my artist page</strong><span class="muted sm">See your page the way fans do</span></span></button></sc-if>
-<button type="button" class="person" onClick="{{logout}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg><span class="nm"><strong>Log out</strong></span></button>
+<button type="button" class="person logoutrow" onClick="{{logout}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg><span class="nm"><strong>Log out</strong></span></button>
 </div>
 </sc-if>
 
@@ -788,15 +812,30 @@
 </div>
 </sc-if>
 
+<!-- ================= LEVEL UP POP ================= -->
+<sc-if value="{{lp.show}}" hint-placeholder-val="{{ false }}">
+<div class="pop" role="status" aria-live="polite">
+<div class="popin">
+<div class="halo"></div>
+<sc-if value="{{lp.isCoin}}" hint-placeholder-val="{{ false }}"><img class="bigcoin" src="{{lp.img}}" alt=""></sc-if>
+<sc-if value="{{ false }}" hint-placeholder-val="{{ false }}"><svg class="bigticket" viewBox="0 0 32 24" aria-hidden="true"><path d="M3 3h26a1 1 0 0 1 1 1v4.5a3.5 3.5 0 0 0 0 7V20a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-4.5a3.5 3.5 0 0 0 0-7V4a1 1 0 0 1 1-1z" fill="#f43f5e"></path><path d="M22 5v14" stroke="#ffe4e6" stroke-width="1.2" stroke-dasharray="1.6 1.6"></path><path d="m12 7 1.4 2.9 3.2.5-2.3 2.2.5 3.2-2.8-1.5-2.8 1.5.5-3.2-2.3-2.2 3.2-.5z" fill="#fff"></path></svg></sc-if>
+<sc-for list="{{lp.bits}}" as="x" hint-placeholder-count="0"><img class="bit" src="{{x.img}}" style="{{x.style}}" alt=""></sc-for>
+<p class="popbig">{{lp.big}}</p>
+<p class="poptitle">{{lp.title}}</p>
+<p class="popsub">{{lp.sub}}</p>
+</div>
+</div>
+</sc-if>
+
 </div>
 </template>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
-<script src="js/runtime.js?v=20261015h"></script>
+<script src="js/runtime.js?v=20261015i"></script>
 <script src="vendor/supabase.js"></script>
-<script src="js/config.js?v=20261015h"></script>
-<script src="js/app.js?v=20261015h"></script>
-<script src="js/live.js?v=20261015h"></script>
+<script src="js/config.js?v=20261015i"></script>
+<script src="js/app.js?v=20261015i"></script>
+<script src="js/live.js?v=20261015i"></script>
 <script>
   // Live app by default (Supabase). Add ?screen=<name> to preview a screen with demo data,
   // e.g. index.html?screen=fan-showday (see README for the list).

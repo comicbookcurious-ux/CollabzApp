@@ -539,6 +539,46 @@ class Component extends DCLogic {
     }, { reply: '' });
   }
 
+  // ---------- fan levels ----------
+  // XP comes from activity, so it is the same on every device. Levels 1-6, each with its own badge.
+  levelThresholds() { return [0, 100, 250, 500, 900, 1500]; }
+  levelInfo(u) {
+    const db = this.state.db, id = u.id;
+    let xp = 0;
+    db.subs.filter(x => x.uid === id).forEach(x => { const c = db.challenges.find(y => y.id === x.cid); if (c) xp += c.ev ? 30 : 20; });
+    db.entries.filter(e => e.uid === id).forEach(e => { xp += 10 * e.n; });
+    xp += 50 * db.challenges.filter(c => c.winner === id).length;
+    xp += 50 * db.lotteries.filter(l => (l.picked || []).includes(id)).length;
+    db.forums.forEach(t => { if (t.uid === id) xp += 10; t.replies.forEach(r => { if (r.uid === id) xp += 5; }); });
+    xp += 2 * (db.votes || []).filter(v => v.uid === id).length;
+    xp += 5 * (u.following || []).filter(f => db.users[f] && db.users[f].role === 'artist').length;
+    const T = this.levelThresholds();
+    let lv = 1; T.forEach((t, i) => { if (xp >= t) lv = i + 1; });
+    const max = lv === T.length, cur = T[lv - 1], next = max ? null : T[lv];
+    const pct = max ? 100 : Math.max(4, Math.round((xp - cur) / (next - cur) * 100));
+    return {
+      level: lv, xp: xp, max: max, icon: 'assets/level-' + lv + '.png', label: 'Level ' + lv,
+      barStyle: 'width: ' + pct + '%', progressText: max ? xp + ' XP' : xp + ' / ' + next + ' XP',
+      toNext: max ? 'Top level reached' : (next - xp) + ' XP to Level ' + (lv + 1),
+      steps: T.map((t, i) => ({ icon: 'assets/level-' + (i + 1) + '.png', title: 'Level ' + (i + 1) + ' · ' + t + ' XP', cls: i + 1 <= lv ? 'lvlstep on' : 'lvlstep' }))
+    };
+  }
+  checkLevelUp(me) {
+    if (!me || me.role !== 'fan') { this._lvUser = null; return; }
+    const L = this.levelInfo(me);
+    if (this._lvUser !== me.id) { this._lvUser = me.id; this._lv = L.level; return; }
+    if (L.level > this._lv) {
+      this._lv = L.level;
+      clearTimeout(this._lvt);
+      this._lvt = setTimeout(() => {
+        const pop = this.mkPop('gold', L.label, 'Level up!', 'You earned the Level ' + L.level + ' badge. Keep collaborating to reach the next one.');
+        pop.img = L.icon; pop.bits = pop.bits.map(b => Object.assign({}, b, { img: L.icon }));
+        this.setState({ lvpop: pop });
+        clearTimeout(this._lpt); this._lpt = setTimeout(() => this.setState({ lvpop: null }), 3400);
+      }, this.state.pop ? 2900 : 200);
+    } else if (L.level < this._lv) this._lv = L.level;
+  }
+
   // ---------- view models ----------
   chItem(c, ctx) {
     const s = this.state, db = s.db, me = ctx.me;
@@ -743,6 +783,7 @@ class Component extends DCLogic {
         db.lotteries.filter(l => l.aid === A.id && l.picked.includes(me.id) && !l.claims.includes(me.id)).forEach(l => wins.push({ t: l.title, tab: 'lottery', id: l.id }));
       }
       ap = {
+        hasLv: me.role === 'fan', lv: me.role === 'fan' ? this.levelInfo(me) : {},
         meName: me.name, meAv: this.av(me), goMe: () => this.openProfile(me.id), coins: me.coins, tickets: me.tickets,
         hasWin: wins.length > 0, winText: wins.length ? (wins.length > 1 ? 'You have ' + wins.length + ' prizes to claim, starting with "' + wins[0].t + '".' : 'You won "' + wins[0].t + '". You can claim your prize now.') : '',
         winGo: () => wins.length && this.setState({ tab: wins[0].tab, open: wins[0].id }),
@@ -848,6 +889,7 @@ class Component extends DCLogic {
       db.forums.forEach(t => { if (t.uid === P.id) acts.push({ at: t.at, text: 'Started a topic: "' + t.title + '"', sub: 'Community', go: () => this.go('community', { forumOpen: t.id }) }); t.replies.forEach(r => { if (r.uid === P.id) acts.push({ at: r.at, text: 'Replied to "' + t.title + '"', sub: 'Community', go: () => this.go('community', { forumOpen: t.id }) }); }); });
       acts.sort((x, y) => y.at - x.at);
       pf = {
+        hasLv: P.role === 'fan', lv: P.role === 'fan' ? this.levelInfo(P) : {},
         isMe: isMe, notMe: !isMe, isArtist: P.role === 'artist', coins: P.coins || { silver: 0, gold: 0, green: 0 }, tickets: P.tickets || 0, roleLabel: P.role === 'artist' ? 'ARTIST' : 'FAN', hasGenre: P.role === 'artist' && this.gIds(P).length > 0, genre: this.gNames(P),
         av: this.av(P), name: P.name, email: P.email, location: P.location, hasLoc: !!P.location, bio: P.bio, hasBio: !!P.bio,
         followers: P.followers.length, following: P.following.length,
@@ -912,12 +954,15 @@ class Component extends DCLogic {
       if (k === 'delete') Object.assign(md, { title: 'Delete your account?', okLabel: 'Delete forever', ok: () => this.deleteAccount(), cancelLabel: 'Go back' });
     }
 
+    this.checkLevelUp(me);
+
     // coin pop
     const pp = s.pop ? Object.assign({ show: true }, s.pop) : { show: false, bits: [] };
+    const lp = s.lvpop && !s.pop ? Object.assign({ show: true }, s.lvpop) : { show: false, bits: [] };
 
     return {
       themeStyle: this.themeCss(themeKey), showHeader: !!me && !scr.auth && !scr.setup, scr: scr, hdr: hdr, f: f, mf: mf, auth: auth, su: su,
-      genreCards: genreCards, gp: gp, ex: ex, srch: srch, ap: ap, tabs: tabs, pn: pn, blocks: blocks, sb: sb, cm: cm, pf: pf, ch: ch, md: md, pp: pp,
+      genreCards: genreCards, gp: gp, ex: ex, srch: srch, ap: ap, tabs: tabs, pn: pn, blocks: blocks, sb: sb, cm: cm, pf: pf, ch: ch, md: md, pp: pp, lp: lp,
       q: s.q, reply: s.reply, chatText: s.chatText,
       nav: { canBack: !!me && !scr.auth && !scr.setup && (s.hist || []).length > 0, back: () => this.back() },
       goHome: () => this.home(), goExplore: () => this.go('pickGenre'), goSearch: () => this.go('search'), goCommunity: () => this.go('community'),

@@ -78,3 +78,19 @@ To change a screen, edit its markup in `index.html`. To change behaviour or demo
 
 - Coins, tickets and winners only change through server-side functions in `supabase/schema.sql`, so balances can't be edited from the browser.
 - The app loads all rows at sign-in and refreshes on realtime changes. That's fine for launch; with many thousands of users, switch to paged queries per screen.
+
+## Fan levels
+
+Fans earn XP from activity and level up from 1 to 6 (badges in `assets/level-1.png` … `level-6.png`).
+XP is calculated from saved activity in `levelInfo()` in `js/app.js`, so it's the same on every device:
+
+| Activity | XP |
+|---|---|
+| Challenge submission | 20 |
+| Showday submission | 30 |
+| Win a challenge or lottery | 50 |
+| Each lottery entry | 10 |
+| Start a community topic / reply | 10 / 5 |
+| Follow an artist / vote on a submission | 5 / 2 |
+
+Level thresholds: 0, 100, 250, 500, 900, 1500 XP (`levelThresholds()`).

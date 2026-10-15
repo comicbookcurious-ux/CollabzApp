@@ -360,3 +360,30 @@ select.in option,select.in optgroup{background-color:var(--sheet);color:var(--fg
 
 /* Scoreboard submissions: transparent card, thin outline */
 .sub{background:transparent;border-color:var(--line)}
+
+/* fan level */
+.lvl{display:flex;align-items:center;gap:10px;width:100%;max-width:320px;padding:0;border:0;background:none;text-align:left;color:inherit}
+.lvlicon{width:34px;height:34px;flex:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))}
+.lvlbody{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
+.lvltop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
+.lvlbar{display:block;height:8px;border-radius:999px;background:var(--soft);border:1px solid var(--line);overflow:hidden}
+.lvlbar span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#f5a742,#f2c14e);box-shadow:0 0 10px rgba(242,193,78,.5);transition:width .6s ease}
+.lvlbar.big{height:12px;margin:8px 0 6px}
+.lvlcard{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.lvlcard .grow{flex:1 1 220px;min-width:0}
+.lvlbig{width:96px;height:96px;flex:none;filter:drop-shadow(0 8px 18px rgba(0,0,0,.4));animation:bob 6s ease-in-out infinite}
+.lvlsteps{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.lvlstep{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--soft);border:1px solid var(--line)}
+.lvlstep img{width:22px;height:22px;filter:grayscale(1);opacity:.35}
+.lvlstep.on{border-color:#f2c14e}
+.lvlstep.on img{filter:none;opacity:1}
+.xphow{flex-basis:100%;font-size:14px;border-top:1px solid var(--line);padding-top:12px}
+.xphow summary{cursor:pointer;font-weight:700;min-height:32px}
+.xphow ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px;color:var(--mu)}
+.xphow strong{color:var(--fg)}
+
+/* log out: clearly red */
+.btn.logout{background:#dc2626;color:#fff}
+.btn.logout:hover{filter:brightness(1.1)}
+.person.logoutrow{background:#dc2626;color:#fff;margin-top:4px}
+.person.logoutrow:hover{background:#b91c1c}
