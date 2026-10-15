@@ -83,7 +83,10 @@ select.in{appearance:auto}
 .drop{display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;padding:14px;border:1.5px dashed var(--line);border-radius:14px;background:var(--soft);font-weight:700;cursor:pointer;text-align:center;position:relative}
 .drop:hover{border-color:var(--a1)}
 /* auth */
-.authwrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:18px;padding:20px 16px 28px;position:relative}
+.authwrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:28px 16px;position:relative}
+.authbrand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;margin-bottom:24px}
+.authlogo{height:29px;width:auto;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+.authtag{color:#f5a742;font-size:14px;font-weight:600;line-height:1.45;max-width:320px;text-wrap:balance}
 .authtop{width:100%;max-width:440px;display:flex;align-items:center;min-height:44px}
 .minilogo{height:26px;width:auto;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
 .authcard{width:100%;max-width:440px;display:flex;flex-direction:column;background:var(--card2);border:1px solid var(--line);border-radius:26px;padding:32px 24px;position:relative;z-index:2;box-shadow:0 30px 80px rgba(10,0,30,.45)}
