@@ -11,7 +11,7 @@ class Component extends DCLogic {
       tab: 'challenges', open: null, ans: {},
       auth: this.blankAuth(), setup: null, genre: 'music', gsel: null, modal: null, pop: null,
       sb: { cat: 'challenge', sel: '' }, q: '', forumOpen: null, forumDraft: null, reply: '',
-      chatWith: null, chatText: ''
+      chatWith: null, chatText: '', play: null
     };
   }
   // Preview states: each screen artboard on the canvas mounts this file with a `start` value.
@@ -68,6 +68,14 @@ class Component extends DCLogic {
         art('f1', 'a2', 'challenges', { modal: { kind: 'notifs', fresh: db.notifs.filter(n => n.uid === 'f1').slice(0, 3).map(n => n.id) } });
         break;
       case 'games': art('f1', 'a2', 'games'); break;
+      case 'owner-games': art('a2', 'a2', 'games'); break;
+      case 'owner-game-new': art('a2', 'a2', 'games'); setTimeout(() => this.openGmModal(null), 0); break;
+      case 'play-trivia': case 'play-quiz': case 'play-solitaire': case 'play-memory': case 'play-hilo': case 'play-blackjack': case 'play-golf': case 'play-puzzle': {
+        const v = k.slice(5), g = db.games.find(x => (x.kind === 'cards' ? x.variant : x.kind) === v);
+        art('f1', 'a2', 'games', { play: { gid: g.id, v: v, practice: false, st: this.newSt(g), over: false, won: false, msg: '' } });
+        if (v === 'trivia') S.play.st = Object.assign(S.play.st, { busy: false, qAt: t, left: 11 });
+        break;
+      }
       default: break;
     }
     return S;
@@ -136,6 +144,27 @@ class Component extends DCLogic {
       f1: base({ id: 'f1', role: 'fan', name: 'Jess Tan', email: 'jess@collabz.app', genre: 'film', bio: 'Film nerd and front-row regular.', location: 'Perth, WA', socials: { facebook: '', instagram: 'https://instagram.com', x: '', tiktok: '', youtube: '' }, coins: { silver: 10, gold: 10, green: 0 }, tickets: 10, followers: ['f2'], following: ['a1', 'a5'] }),
       f2: base({ id: 'f2', role: 'fan', name: 'Marco Diaz', email: 'marco@collabz.app', genre: 'music', bio: 'Concerts every weekend.', location: 'Fremantle, WA', coins: { silver: 18, gold: 14, green: 1 }, tickets: 4, following: ['a1', 'a2', 'f1'] })
     };
+    const gm = (o) => Object.assign({ variant: null, desc: '', img: '', size: null, secs: null, pass: null, target: null, qs: [], winners: 1, picked: [], claims: [], at: t - D }, o);
+    const games = [
+      gm({ id: 'g1', aid: 'a2', kind: 'trivia', title: 'Kai Mercer movie trivia', desc: 'How well do you know the films?', secs: 15, winners: 3, prize: { type: 'gold', amount: 3 }, picked: ['f2'], at: t - 3 * D, qs: [
+        { q: 'Where did we film the final scene of "Northern Lights"?', opts: ['Perth', 'Auckland', 'Vancouver', 'Reykjavik'], ans: 3 },
+        { q: 'How many days did the shoot take?', opts: ['21', '35', '48', '60'], ans: 2 },
+        { q: 'Which prop did Kai keep after filming?', opts: ['The red scarf', 'The compass', 'The old camera'], ans: 1 },
+        { q: 'What year did Kai’s first short film come out?', opts: ['2016', '2018', '2020', '2022'], ans: 1 }] }),
+      gm({ id: 'g2', aid: 'a2', kind: 'quiz', title: 'Behind the scenes quiz', desc: 'Five questions about life on set.', pass: 4, winners: 1, prize: { type: 'custom', amount: 1, text: 'Signed premiere poster', img: this.demoImg('#7c2d12', '#f59e0b') }, at: t - 2 * D, qs: [
+        { q: 'What is the first thing called before a take?', opts: ['Roll sound', 'Action', 'Cut'], ans: 0 },
+        { q: 'Who calls "Cut"?', opts: ['The editor', 'The director', 'The producer'], ans: 1 },
+        { q: 'What is a "martini shot"?', opts: ['The first shot of the day', 'The last shot of the day', 'A party scene'], ans: 1 },
+        { q: 'What does the clapperboard help with?', opts: ['Lighting', 'Syncing sound and picture', 'Costumes'], ans: 1 },
+        { q: 'What is "golden hour"?', opts: ['Lunch break', 'Overtime', 'The light just after sunrise or before sunset'], ans: 2 }] }),
+      gm({ id: 'g3', aid: 'a2', kind: 'solitaire', title: 'Premiere Solitaire', desc: 'Classic solitaire with the premiere card design.', img: this.demoBack('#4c1d95', '#be185d'), winners: 5, prize: { type: 'silver', amount: 5 }, at: t - 2 * D }),
+      gm({ id: 'g4', aid: 'a2', kind: 'cards', variant: 'memory', title: 'Memory match', desc: 'Find the pairs.', img: this.demoBack('#0f766e', '#1d4ed8'), winners: 10, prize: { type: 'tickets', amount: 2 }, at: t - 30 * H }),
+      gm({ id: 'g5', aid: 'a2', kind: 'cards', variant: 'hilo', title: 'Higher or Lower', target: 7, img: this.demoBack('#4c1d95', '#be185d'), winners: 2, prize: { type: 'green', amount: 1 }, at: t - 26 * H }),
+      gm({ id: 'g6', aid: 'a2', kind: 'cards', variant: 'blackjack', title: 'Blackjack night', target: 3, img: this.demoBack('#14532d', '#0f766e'), winners: 3, prize: { type: 'gold', amount: 2 }, at: t - 20 * H }),
+      gm({ id: 'g7', aid: 'a2', kind: 'cards', variant: 'golf', title: 'Golf solitaire', img: this.demoBack('#4c1d95', '#be185d'), winners: 3, prize: { type: 'silver', amount: 3 }, at: t - 10 * H }),
+      gm({ id: 'g8', aid: 'a2', kind: 'puzzle', title: 'Premiere poster puzzle', desc: 'Put the poster back together.', img: this.demoScene(), size: 3, winners: 1, prize: { type: 'green', amount: 1 }, at: t - 5 * H })
+    ];
+    const gplays = [{ gid: 'g1', uid: 'f2', plays: 3, won: true, best: 4, wonAt: t - 2 * D, at: t - 2 * D }, { gid: 'g3', uid: 'f2', plays: 2, won: false, best: null, at: t - D }, { gid: 'g8', uid: 'f2', plays: 1, won: true, best: 14, wonAt: t - 3 * H, at: t - 3 * H }];
     const ch = (o) => Object.assign({ ev: null, options: [], imgs: [], rt: 'gold', rw: 1, max: 100, winner: null, claimed: false, at: t - 2 * D }, o);
     return {
       users: users,
@@ -168,6 +197,7 @@ class Component extends DCLogic {
         { id: 's4', cid: 'c6', uid: 'f2', answer: '', file: null, at: t - 4 * D }
       ],
       entries: [{ lid: 'l1', uid: 'f2', n: 2, at: t - D }, { lid: 'l2', uid: 'f2', n: 1, at: t - D }],
+      games: games, gplays: gplays,
       hidden: [],
       votes: [{ sid: 's2', uid: 'f1', v: 1 }, { sid: 's3', uid: 'f1', v: 1 }],
       forums: [
@@ -192,8 +222,8 @@ class Component extends DCLogic {
     if (next.pop) { clearTimeout(this._pt); this._pt = setTimeout(() => this.setState({ pop: null }), 2900); }
   }
   notify(db, uid, text, link) { if (!db.users[uid]) return; db.notifs.unshift({ id: this.uid('n'), uid: uid, text: text, at: Date.now(), read: false, link: link || null }); }
-  mkPop(type, n, title, sub) {
-    const img = type === 'ticket' ? null : this.coin(type);
+  mkPop(type, n, title, sub, customImg) {
+    const img = type === 'ticket' ? null : (type === 'custom' ? (customImg || 'assets/collabz-icon.png') : this.coin(type));
     const bits = img ? Array.from({ length: 10 }, (_, i) => { const a = (i / 10) * Math.PI * 2 + 0.3; const r = 150 + (i % 3) * 40; return { img: img, style: '--dx:' + Math.round(Math.cos(a) * r) + 'px;--dy:' + Math.round(Math.sin(a) * r) + 'px;animation-delay:' + (0.25 + i * 0.04).toFixed(2) + 's' }; }) : [];
     return { img: img || '', isCoin: !!img, isTicket: !img, big: n, title: title, sub: sub, bits: bits, k: Date.now() };
   }
@@ -238,6 +268,7 @@ class Component extends DCLogic {
     try { const v = JSON.parse(localStorage.getItem('collabz:lastArtist:' + u.id) || 'null'); if (v && v.id) cands.push(v); } catch (e) {}
     db.subs.filter(x => x.uid === u.id).forEach(x => { const c = db.challenges.find(y => y.id === x.cid); if (c) cands.push({ id: c.aid, at: x.at }); });
     db.entries.filter(x => x.uid === u.id).forEach(x => { const l = db.lotteries.find(y => y.id === x.lid); if (l) cands.push({ id: l.aid, at: x.at }); });
+    (db.gplays || []).filter(x => x.uid === u.id).forEach(x => { const g = (db.games || []).find(y => y.id === x.gid); if (g) cands.push({ id: g.aid, at: x.at }); });
     const best = cands.filter(c => db.users[c.id] && db.users[c.id].role === 'artist').sort((a, b) => b.at - a.at)[0];
     if (best) return best.id;
     const followed = (u.following || []).filter(id => db.users[id] && db.users[id].role === 'artist');
@@ -265,7 +296,7 @@ class Component extends DCLogic {
   authErr(msg) { this.setState({ auth: Object.assign({}, this.state.auth, { error: msg, info: '' }) }); }
   enter(id) {
     const u = this.state.db.users[id]; if (!u) return;
-    const base = { me: id, auth: this.blankAuth(), modal: null, open: null, ans: {}, q: '', chatWith: null, hist: [] };
+    const base = { me: id, auth: this.blankAuth(), modal: null, open: null, ans: {}, q: '', chatWith: null, hist: [], play: null };
     if (u.role === 'artist') this.go('artist', Object.assign(base, { viewing: id, tab: 'challenges', sb: { cat: 'challenge', sel: '' } }));
     else {
       // Fans land straight back on the last artist they collaborated with (no Back button: history starts here)
@@ -300,7 +331,7 @@ class Component extends DCLogic {
     if (!/^\S+@\S+\.\S+$/.test(em)) return this.authErr('Enter the email you signed up with.');
     this.setState({ auth: Object.assign({}, this.state.auth, { error: '', info: 'If an account exists for ' + em + ', a password reset link is on its way. Check your inbox.' }) });
   }
-  logout() { this.go('auth', { me: null, viewing: null, profileId: null, auth: this.blankAuth(), modal: null, setup: null, ans: {}, open: null, hist: [] }); }
+  logout() { this.closeGame(); this.go('auth', { me: null, viewing: null, profileId: null, auth: this.blankAuth(), modal: null, setup: null, ans: {}, open: null, hist: [], play: null }); }
 
   // ---------- setup ----------
   setSu(k, v) { this.setState({ setup: Object.assign({}, this.state.setup, { [k]: v, err: '' }) }); }
@@ -349,7 +380,7 @@ class Component extends DCLogic {
   // ---------- challenges ----------
   demoImg(c1, c2) {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c1 + '"/><stop offset="1" stop-color="' + c2 + '"/></linearGradient></defs><rect width="300" height="300" fill="url(#g)"/><circle cx="150" cy="105" r="38" fill="rgba(255,255,255,.35)"/><path d="M95 255 112 160h76l17 95z" fill="rgba(255,255,255,.35)"/></svg>';
-    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
   typeName(t, long) { return (long ? { mc: 'Multiple choice', text: 'Text answer', image: 'Image challenge', video: 'Video challenge' } : { mc: 'Multiple choice', text: 'Text answer', image: 'Image', video: 'Video' })[t] || t; }
   hasMedia(c) { return c.type === 'image' || c.type === 'video'; }
@@ -509,6 +540,7 @@ class Component extends DCLogic {
     this.mut(db => {
       if (m.action === 'delCh') { db.challenges = db.challenges.filter(x => x.id !== id); db.subs = db.subs.filter(x => x.cid !== id); }
       if (m.action === 'delEv') { const ids = db.challenges.filter(x => x.ev === id).map(x => x.id); db.events = db.events.filter(x => x.id !== id); db.challenges = db.challenges.filter(x => x.ev !== id); db.subs = db.subs.filter(x => !ids.includes(x.cid)); }
+      if (m.action === 'delGm') { db.games = db.games.filter(x => x.id !== id); db.gplays = db.gplays.filter(x => x.gid !== id); }
       if (m.action === 'delLt') { db.lotteries = db.lotteries.filter(x => x.id !== id); db.entries = db.entries.filter(x => x.lid !== id); }
     }, { modal: null, open: null });
   }
@@ -575,7 +607,7 @@ class Component extends DCLogic {
       ['8. Changes to these terms', 'We may update these terms as Collabz grows. If we make important changes, we will tell you in the app before they take effect.']
     ];
     const fan = [['For fans', 'Your submissions must be your own work. You can take part in each challenge once. Artists choose challenge winners, and their decision is final once a prize has been claimed.']];
-    const artist = [['For creators and artists', 'You are responsible for the challenges, Showday events and lotteries you post, and for delivering the prizes and experiences you offer. Describe prizes honestly and clearly. Make sure your promotions, competitions and lotteries follow the laws and permit rules where you and your fans live.']];
+    const artist = [['For creators and artists', 'You are responsible for the challenges, Showday events, lotteries and games you post, and for delivering the prizes and experiences you offer. Describe prizes honestly and clearly. Make sure your promotions, competitions and lotteries follow the laws and permit rules where you and your fans live.']];
     return common.concat(role === 'artist' ? artist : fan).map(x => ({ h: x[0], p: x[1] }));
   }
   acceptTerms() {
@@ -598,6 +630,8 @@ class Component extends DCLogic {
     xp += 50 * db.lotteries.filter(l => (l.picked || []).includes(id)).length;
     db.forums.forEach(t => { if (t.uid === id) xp += 10; t.replies.forEach(r => { if (r.uid === id) xp += 5; }); });
     xp += 2 * (db.votes || []).filter(v => v.uid === id).length;
+    (db.gplays || []).forEach(p => { if (p.uid === id && p.won && (db.games || []).some(g => g.id === p.gid)) xp += 15; });
+    xp += 50 * (db.games || []).filter(g => g.picked.includes(id)).length;
     xp += 5 * (u.following || []).filter(f => db.users[f] && db.users[f].role === 'artist').length;
     const T = this.levelThresholds();
     let lv = 1; T.forEach((t, i) => { if (xp >= t) lv = i + 1; });
@@ -727,6 +761,395 @@ class Component extends DCLogic {
     };
   }
 
+
+  // ---------- games ----------
+  G() { return window.CollabzGames; }
+  gameKinds() {
+    return [
+      ['trivia', 'Trivia', 'Timed questions you write. Fans must get every one right.'],
+      ['quiz', 'Quiz', 'Questions you write, answered at their own pace. Fans pass with the score you set.'],
+      ['solitaire', 'Solitaire', 'Classic Klondike solitaire with your design on the back of the cards.'],
+      ['cards', 'Classic Card Games', 'Memory match, Higher or Lower, Blackjack or Golf solitaire with your card back.'],
+      ['puzzle', 'Puzzle', 'Upload an image. It is cut into tiles that fans swap back into place.']
+    ];
+  }
+  variants() { return [['memory', 'Memory match'], ['hilo', 'Higher or Lower'], ['blackjack', 'Blackjack'], ['golf', 'Golf solitaire']]; }
+  gameLabel(g) { if (g.kind === 'cards') { const v = this.variants().find(x => x[0] === g.variant); return v ? v[1] : 'Card game'; } const k = this.gameKinds().find(x => x[0] === g.kind); return k ? k[1] : 'Game'; }
+  gameHow(g) {
+    const n = (g.qs || []).length, t = g.target || 0;
+    switch (g.kind === 'cards' ? g.variant : g.kind) {
+      case 'trivia': return this.plural(n, 'question', 'questions') + ', ' + (g.secs || 15) + ' seconds each. Get every answer right to win.';
+      case 'quiz': return this.plural(n, 'question', 'questions') + '. Get at least ' + Math.min(g.pass || n, n) + ' right to win.';
+      case 'solitaire': return 'Move every card up to the four foundations, Ace to King, to win. Tap a card to move it.';
+      case 'memory': return 'Flip two cards at a time. Find all 8 pairs to win.';
+      case 'hilo': return 'Guess if the next card is higher or lower. Get ' + t + ' right in a row to win.';
+      case 'blackjack': return 'Beat the dealer to 21. Win ' + this.plural(t, 'hand', 'hands') + ' before the dealer does to win the game.';
+      case 'golf': return 'Clear all seven columns. Play a card one higher or lower than the top of the pile.';
+      case 'puzzle': return 'Tap two tiles to swap them. Put the ' + (g.size || 3) + '×' + (g.size || 3) + ' picture back together to win.';
+      default: return '';
+    }
+  }
+  // Lower is better for move-based games; higher for the rest
+  lowerBetter(g) { return g.kind === 'solitaire' || g.kind === 'puzzle' || (g.kind === 'cards' && (g.variant === 'memory' || g.variant === 'blackjack')); }
+  scoreText(g, sc) {
+    if (sc == null) return '';
+    switch (g.kind === 'cards' ? g.variant : g.kind) {
+      case 'trivia': case 'quiz': return sc + ' of ' + (g.qs || []).length + ' right';
+      case 'blackjack': return this.plural(sc, 'hand', 'hands') + ' lost';
+      case 'hilo': return sc + ' in a row';
+      case 'golf': return this.plural(sc, 'card', 'cards') + ' left in the stock';
+      default: return this.plural(sc, 'move', 'moves');
+    }
+  }
+  prizeInfo(g) {
+    const p = g.prize || { type: 'gold', amount: 1 }, a = p.amount || 1;
+    if (p.type === 'custom') return { img: p.img || '', hasImg: !!p.img, isTicket: false, gift: !p.img, label: p.text || 'A prize from the artist', isCustom: true };
+    if (p.type === 'tickets') return { img: '', hasImg: false, isTicket: true, gift: false, label: this.plural(a, 'ticket', 'tickets'), isCustom: false };
+    return { img: this.coin(p.type), hasImg: true, isTicket: false, gift: false, label: this.plural(a, p.type + ' coin', p.type + ' coins'), isCustom: false };
+  }
+  playOf(gid, uid) { return (this.state.db.gplays || []).find(p => p.gid === gid && p.uid === uid) || null; }
+  demoBack(c1, c2) {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 280"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c1 + '"/><stop offset="1" stop-color="' + c2 + '"/></linearGradient><pattern id="p" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="20" fill="rgba(255,255,255,.08)"/></pattern></defs><rect width="200" height="280" fill="url(#g)"/><rect width="200" height="280" fill="url(#p)"/><rect x="12" y="12" width="176" height="256" rx="10" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="3"/><circle cx="100" cy="140" r="34" fill="none" stroke="#fde68a" stroke-width="5"/><path d="M100 116l7 15 16 2-12 11 3 16-14-8-14 8 3-16-12-11 16-2z" fill="#fde68a"/></svg>';
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+  demoScene() {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e1b4b"/><stop offset=".55" stop-color="#c026d3"/><stop offset="1" stop-color="#fb923c"/></linearGradient></defs><rect width="600" height="600" fill="url(#s)"/><circle cx="420" cy="250" r="90" fill="#fde047"/><g fill="#fff" opacity=".8"><circle cx="80" cy="70" r="3"/><circle cx="190" cy="40" r="2"/><circle cx="300" cy="100" r="3"/><circle cx="520" cy="60" r="2"/><circle cx="560" cy="140" r="3"/></g><path d="M0 420 120 290 230 400 340 260 470 420 600 330V600H0z" fill="#312e81"/><path d="M0 500 160 380 300 480 430 400 600 470V600H0z" fill="#0f172a"/><rect x="250" y="455" width="100" height="90" fill="#f472b6"/><path d="M240 455h120l-60-50z" fill="#fbcfe8"/><rect x="285" y="495" width="30" height="50" fill="#0f172a"/><text x="300" y="585" font-family="Arial" font-size="34" font-weight="700" fill="#fde68a" text-anchor="middle">PREMIERE NIGHT</text></svg>';
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+  cardV(c, g, extra) {
+    const G = this.G(), up = !!(c && c.up);
+    const back = g && g.img ? 'background-image: url("' + g.img + '")' : '';
+    return Object.assign({ up: up, down: !up, rank: c ? G.RANK[c.r] : '', sym: c ? G.SYM[c.s] : '', cls: 'pc' + (up ? (G.red(c) ? ' red' : '') : ' down' + (g && g.img ? ' art' : '')), style: up ? '' : back }, extra || {});
+  }
+
+  // Game sheet (create / edit)
+  blankQ() { return { q: '', o: ['', '', '', ''], ans: 0 }; }
+  openGmModal(g) {
+    const p = (g && g.prize) || { type: 'gold', amount: 1, text: '', img: '' };
+    const qs = g && g.qs && g.qs.length ? g.qs.map(q => { const o = q.opts.slice(0, 4); while (o.length < 4) o.push(''); return { q: q.q, o: o, ans: q.ans == null ? 0 : q.ans }; }) : [this.blankQ(), this.blankQ(), this.blankQ()];
+    this.setState({ modal: {
+      kind: 'gm', id: g ? g.id : null, gk: g ? g.kind : 'trivia', variant: g ? (g.variant || 'memory') : 'memory', title: g ? g.title : '', desc: g ? g.desc : '', img: g ? (g.img || '') : '',
+      size: String(g ? g.size || 3 : 3), secs: String(g ? g.secs || 15 : 15), pass: String(g && g.pass ? g.pass : ''), target: String(g && g.target ? g.target : ''),
+      qs: qs, pt: p.type, pa: String(p.amount || 1), ptext: p.text || '', pimg: p.img || '', winners: String(g ? g.winners : 1), err: ''
+    } });
+  }
+  setQf(i, k, v, oi) { const m = this.state.modal, qs = m.qs.map(q => ({ q: q.q, o: q.o.slice(), ans: q.ans })); if (k === 'o') qs[i].o[oi] = v; else qs[i][k] = v; this.setState({ modal: Object.assign({}, m, { qs: qs, err: '' }) }); }
+  addQ() { const m = this.state.modal; if (m.qs.length >= 20) return this.setM('err', 'Up to 20 questions per game.'); this.setState({ modal: Object.assign({}, m, { qs: m.qs.concat([this.blankQ()]), err: '' }) }); }
+  delQ(i) { const m = this.state.modal; if (m.qs.length <= 1) return; this.setState({ modal: Object.assign({}, m, { qs: m.qs.filter((_, j) => j !== i), err: '' }) }); }
+  // Validates the sheet and returns the game data, or an error message
+  gmData(m) {
+    const k = m.gk, int = (x) => parseInt(x, 10);
+    if (!m.title.trim()) return 'Give the game a title.';
+    const d = { kind: k, variant: k === 'cards' ? m.variant : null, title: m.title.trim(), desc: (m.desc || '').trim(), img: (k === 'solitaire' || k === 'cards' || k === 'puzzle') ? (m.img || '') : '', size: null, secs: null, pass: null, target: null, qs: [] };
+    if (k === 'trivia' || k === 'quiz') {
+      const qs = [];
+      for (let i = 0; i < m.qs.length; i++) {
+        const q = m.qs[i], txt = q.q.trim(), filled = q.o.map((o, j) => ({ t: o.trim(), j: j })).filter(o => o.t);
+        if (!txt && !filled.length) continue;
+        if (!txt) return 'Question ' + (i + 1) + ' needs the question text.';
+        if (filled.length < 2) return 'Question ' + (i + 1) + ' needs at least two answers.';
+        const ai = filled.findIndex(o => o.j === q.ans);
+        if (ai < 0) return 'Question ' + (i + 1) + ': tick the correct answer (it can’t be an empty one).';
+        if (new Set(filled.map(o => o.t.toLowerCase())).size !== filled.length) return 'Question ' + (i + 1) + ' has the same answer twice.';
+        qs.push({ q: txt, opts: filled.map(o => o.t), ans: ai });
+      }
+      if (!qs.length) return 'Add at least one question.';
+      d.qs = qs;
+      if (k === 'trivia') { const s = int(m.secs); if (!(s >= 5 && s <= 120)) return 'Seconds per question must be between 5 and 120.'; d.secs = s; }
+      if (k === 'quiz') { const p = m.pass === '' ? qs.length : int(m.pass); if (!(p >= 1 && p <= qs.length)) return 'Correct answers needed must be between 1 and ' + qs.length + '.'; d.pass = p; }
+    }
+    if (k === 'puzzle') { if (!m.img) return 'Upload the image for the puzzle.'; const z = int(m.size); if (![3, 4, 5].includes(z)) return 'Choose a puzzle size.'; d.size = z; }
+    if (k === 'cards' && m.variant === 'hilo') { const t = m.target === '' ? 7 : int(m.target); if (!(t >= 3 && t <= 20)) return 'The streak to win must be between 3 and 20.'; d.target = t; }
+    if (k === 'cards' && m.variant === 'blackjack') { const t = m.target === '' ? 3 : int(m.target); if (!(t >= 1 && t <= 10)) return 'Hands to win must be between 1 and 10.'; d.target = t; }
+    const pa = int(m.pa), w = int(m.winners);
+    if (m.pt === 'custom') { if (!m.ptext.trim()) return 'Describe the prize, e.g. "Signed poster".'; }
+    else if (!(pa >= 1 && pa <= 1000)) return 'The prize amount must be between 1 and 1000.';
+    if (!(w >= 1 && w <= 1000)) return 'Allow at least 1 prize winner.';
+    d.prize = m.pt === 'custom' ? { type: 'custom', amount: 1, text: m.ptext.trim(), img: m.pimg || '' } : { type: m.pt, amount: pa, text: '', img: '' };
+    d.winners = w;
+    return d;
+  }
+  saveGm() {
+    const m = this.state.modal, me = this.state.me, d = this.gmData(m);
+    if (typeof d === 'string') return this.setM('err', d);
+    this.mut(db => {
+      db.games = db.games || [];
+      if (m.id) { const g = db.games.find(x => x.id === m.id); Object.assign(g, d); }
+      else {
+        const g = Object.assign({ id: this.uid('g'), aid: me, picked: [], claims: [], at: Date.now() }, d);
+        db.games.push(g);
+        db.users[me].followers.forEach(f => this.notify(db, f, db.users[me].name + ' posted a new game: "' + g.title + '". Play it to win ' + this.prizeInfo(g).label + '.', { type: 'artist', id: me, tab: 'games' }));
+      }
+    }, { modal: null });
+  }
+
+  // Playing. Fans' plays are recorded; the artist can try their own game without it counting.
+  startGame(gid) {
+    const s = this.state, g = (s.db.games || []).find(x => x.id === gid), me = s.db.users[s.me]; if (!g || !me) return;
+    const practice = me.role !== 'fan';
+    if (practice && g.aid !== me.id) return;
+    clearInterval(this._gt); clearTimeout(this._gh);
+    const v = g.kind === 'cards' ? g.variant : g.kind, st = this.newSt(g);
+    this.setState({ play: { gid: gid, v: v, practice: practice, st: st, over: false, won: false, msg: '', starting: !practice } });
+    try { window.scrollTo({ top: 0 }); } catch (e) {}
+    const begin = () => { this.setPlay({ starting: false }); if (v === 'trivia') this.triviaNext(0); };
+    if (practice) begin(); else Promise.resolve(this.gStart(g)).then(begin, (e) => { this.setPlay({ starting: false, over: true, msg: (e && e.message) || 'Couldn’t start the game. Try again.' }); });
+  }
+  newSt(g) {
+    const G = this.G(), v = g.kind === 'cards' ? g.variant : g.kind;
+    let st = null;
+    if (v === 'trivia') st = { i: 0, picked: null, fb: '', right: 0, busy: true, left: g.secs || 15, qAt: 0 };
+    if (v === 'quiz') st = { answers: (g.qs || []).map(() => null), done: false, score: null, busy: false };
+    if (v === 'solitaire') st = G.klondike.deal();
+    if (v === 'golf') st = G.golf.deal();
+    if (v === 'memory') st = G.memory.deal();
+    if (v === 'hilo') st = G.hilo.deal();
+    if (v === 'blackjack') st = G.bj.deal();
+    if (v === 'puzzle') st = G.puzzle.deal(g.size || 3);
+    return st;
+  }
+  setPlay(patch, stPatch) { const p = this.state.play; if (!p) return; const n = Object.assign({}, p, patch || {}); if (stPatch) n.st = Object.assign({}, p.st, stPatch); this.setState({ play: n }); }
+  setSt(st) { const p = this.state.play; if (p) this.setState({ play: Object.assign({}, p, { st: st }) }); }
+  closeGame() { clearInterval(this._gt); clearTimeout(this._gh); this.setState({ play: null }); }
+  playGame() { return this.state.play ? (this.state.db.games || []).find(x => x.id === this.state.play.gid) : null; }
+  // Game over. Wins by fans are recorded (first win counts for the prize; later wins can improve the best score).
+  endGame(won, score, msg) {
+    const p = this.state.play, g = this.playGame(); if (!p || p.over) return;
+    clearInterval(this._gt);
+    this.setPlay({ over: true, won: won, score: score, msg: msg || '' });
+    if (won && !p.practice) {
+      const first = !(this.playOf(g.id, this.state.me) || {}).won;
+      Promise.resolve(this.gWin(g, score)).then(() => { if (first) this.setPlay({ firstWin: true }); });
+    }
+  }
+  // --- these four are replaced by Supabase calls in live mode (js/live.js) ---
+  gStart(g) {
+    const me = this.state.me;
+    this.mut(db => { db.gplays = db.gplays || []; let r = db.gplays.find(x => x.gid === g.id && x.uid === me); if (!r) { r = { gid: g.id, uid: me, plays: 0, won: false, best: null, at: Date.now() }; db.gplays.push(r); } r.plays++; r.at = Date.now(); });
+  }
+  gWin(g, score) {
+    const me = this.state.me, lb = this.lowerBetter(g);
+    this.mut(db => {
+      const r = db.gplays.find(x => x.gid === g.id && x.uid === me); if (!r) return false;
+      const first = !r.won;
+      r.best = r.best == null ? score : (lb ? Math.min(r.best, score) : Math.max(r.best, score));
+      if (first) { r.won = true; r.wonAt = Date.now(); this.notify(db, g.aid, db.users[me].name + ' won your game "' + g.title + '". Pick prize winners on the Scoreboard.', { type: 'score', id: g.aid, cat: 'game', sel: g.id }); }
+    });
+  }
+  gradeTrivia(g, i, choice) { const q = g.qs[i]; return Promise.resolve({ correct: !!q && q.ans === choice }); }
+  gradeQuiz(g, answers) { const score = g.qs.reduce((a, q, i) => a + (q.ans === answers[i] ? 1 : 0), 0); return Promise.resolve({ score: score, won: score >= Math.min(g.pass || g.qs.length, g.qs.length) }); }
+
+  // Trivia: a countdown per question; a wrong answer or running out of time ends the run
+  triviaNext(i) {
+    const g = this.playGame(); if (!g) return;
+    this.setPlay(null, { i: i, picked: null, fb: '', busy: false, left: g.secs || 15, qAt: Date.now() });
+    clearInterval(this._gt);
+    this._gt = setInterval(() => {
+      const p = this.state.play; if (!p || p.over || p.v !== 'trivia') { clearInterval(this._gt); return; }
+      if (p.st.busy) return;
+      const left = Math.max(0, (g.secs || 15) - (Date.now() - p.st.qAt) / 1000);
+      if (left <= 0) { clearInterval(this._gt); this.triviaAnswer(-1); } else this.setPlay(null, { left: left });
+    }, 200);
+  }
+  triviaAnswer(choice) {
+    const p = this.state.play, g = this.playGame(); if (!p || p.over || p.st.busy) return;
+    const i = p.st.i, n = g.qs.length;
+    clearInterval(this._gt);
+    this.setPlay(null, { busy: true, picked: choice });
+    Promise.resolve(p.practice ? this.gradeTriviaLocal(g, i, choice) : this.gradeTrivia(g, i, choice)).then((r) => {
+      if (!this.state.play || this.state.play.gid !== g.id) return;
+      if (r.correct) {
+        const right = this.state.play.st.right + 1;
+        this.setPlay(null, { fb: 'right', right: right });
+        this._gh = setTimeout(() => { if (right >= n) this.endGame(true, right, 'You answered all ' + n + ' correctly!'); else this.triviaNext(i + 1); }, 750);
+      } else {
+        this.setPlay(null, { fb: choice < 0 ? 'time' : 'wrong' });
+        this._gh = setTimeout(() => this.endGame(false, this.state.play.st.right, (choice < 0 ? 'Time’s up! ' : 'Not quite! ') + 'You got ' + this.state.play.st.right + ' of ' + n + ' right.'), 900);
+      }
+    }, (e) => { this.endGame(false, p.st.right, (e && e.message) || 'Something went wrong. Try again.'); });
+  }
+  gradeTriviaLocal(g, i, choice) { const q = g.qs[i]; return { correct: !!q && q.ans === choice }; }
+  quizPick(qi, oi) { const p = this.state.play; if (!p || p.st.done) return; const a = p.st.answers.slice(); a[qi] = oi; this.setPlay(null, { answers: a }); }
+  quizSubmit() {
+    const p = this.state.play, g = this.playGame(); if (!p || p.st.done || p.st.busy) return;
+    if (p.st.answers.some(x => x == null)) return this.setPlay({ msg: 'Answer every question first.' });
+    this.setPlay({ msg: '' }, { busy: true });
+    const local = () => { const score = g.qs.reduce((a, q, i) => a + (q.ans === p.st.answers[i] ? 1 : 0), 0); return { score: score, won: score >= Math.min(g.pass || g.qs.length, g.qs.length) }; };
+    Promise.resolve(p.practice ? local() : this.gradeQuiz(g, p.st.answers)).then((r) => {
+      this.setPlay(null, { done: true, busy: false, score: r.score });
+      this.endGame(r.won, r.score, 'You got ' + r.score + ' of ' + g.qs.length + ' right.' + (r.won ? '' : ' You need ' + Math.min(g.pass || g.qs.length, g.qs.length) + ' to win. Try again!'));
+    }, (e) => { this.setPlay({ msg: (e && e.message) || 'Couldn’t check your answers. Try again.' }, { busy: false }); });
+  }
+  // Card and puzzle moves
+  solTap(from, ci) {
+    const p = this.state.play, G = this.G(); if (!p || p.over) return;
+    if (from === 'stock') { const n = G.klondike.draw(p.st); if (n !== p.st) this.solSet(n); return; }
+    const n = G.klondike.tap(p.st, from, ci);
+    if (n) this.solSet(n); else this.setPlay({ hint: 'No move for that card', hintAt: Date.now() });
+  }
+  solSet(n) {
+    const G = this.G();
+    if (G.klondike.canAuto(n)) n = G.klondike.autoFinish(n);
+    this.setPlay({ hint: '' }); this.setSt(n);
+    if (G.klondike.won(n)) this.endGame(true, n.moves, 'Solved in ' + n.moves + ' moves!');
+  }
+  solUndo() { const p = this.state.play; if (!p || p.over) return; this.setSt(this.G().klondike.undoMove(p.st)); }
+  golfTap(i) {
+    const p = this.state.play, G = this.G(); if (!p || p.over) return;
+    const n = i < 0 ? G.golf.draw(p.st) : G.golf.tap(p.st, i);
+    if (!n) { this.setPlay({ hint: i < 0 ? 'The stock is empty' : 'That card must be one higher or lower than the pile' }); return; }
+    this.setPlay({ hint: '' }); this.setSt(n);
+    if (G.golf.won(n)) this.endGame(true, n.stock.length, 'Cleared with ' + this.plural(n.stock.length, 'card', 'cards') + ' left in the stock!');
+    else if (G.golf.stuck(n)) this.endGame(false, null, 'Out of moves with ' + this.plural(G.golf.left(n), 'card', 'cards') + ' left. Try again!');
+  }
+  memFlip(i) {
+    const p = this.state.play, G = this.G(); if (!p || p.over) return;
+    const n = G.memory.flip(p.st, i); if (!n) return;
+    this.setSt(n);
+    if (G.memory.won(n)) this.endGame(true, n.moves, 'All pairs found in ' + n.moves + ' moves!');
+    else if (n.busy) { clearTimeout(this._gh); this._gh = setTimeout(() => { const q = this.state.play; if (q && q.st && q.st.busy) this.setSt(G.memory.hide(q.st)); }, 800); }
+  }
+  hiloGuess(dir) {
+    const p = this.state.play, g = this.playGame(), G = this.G(); if (!p || p.over) return;
+    const n = G.hilo.guess(p.st, dir); this.setSt(n);
+    if (n.streak >= (g.target || 7)) this.endGame(true, n.streak, n.streak + ' in a row. You did it!');
+    else if (n.over) this.endGame(false, n.best, 'Wrong guess! Your streak ended at ' + (p.st.streak) + '.');
+  }
+  bjAct(a) {
+    const p = this.state.play, g = this.playGame(), G = this.G(); if (!p || p.over) return;
+    const t = g.target || 3;
+    let n = a === 'hit' ? G.bj.hit(p.st) : a === 'stand' ? G.bj.stand(p.st) : G.bj.deal(p.st);
+    this.setSt(n);
+    if (n.phase === 'done' && n.wins >= t) this.endGame(true, n.losses, 'You won ' + n.wins + ' hands to ' + n.losses + '!');
+    else if (n.phase === 'done' && n.losses >= t) this.endGame(false, null, 'The dealer won ' + n.losses + ' hands to ' + n.wins + '. Try again!');
+  }
+  puzTap(i) {
+    const p = this.state.play, G = this.G(); if (!p || p.over) return;
+    const n = G.puzzle.tap(p.st, i); this.setSt(n);
+    if (G.puzzle.won(n)) this.endGame(true, n.moves, 'Picture complete in ' + n.moves + ' moves!');
+  }
+
+  // Prizes: the artist picks winners from fans who won the game, up to the number of prizes
+  pickGameWinner(gid, uid) {
+    this.mut(db => {
+      const g = db.games.find(x => x.id === gid); if (!g || g.picked.includes(uid) || g.picked.length >= g.winners) return false;
+      const r = db.gplays.find(x => x.gid === gid && x.uid === uid); if (!r || !r.won) return false;
+      g.picked.push(uid);
+      this.notify(db, uid, 'YOU WON the prize for "' + g.title + '": ' + this.prizeInfo(g).label + '! Claim it on the Games tab.', { type: 'artist', id: g.aid, tab: 'games' });
+    });
+  }
+  unpickGameWinner(gid, uid) {
+    this.mut(db => {
+      const g = db.games.find(x => x.id === gid); if (!g || !g.picked.includes(uid) || g.claims.includes(uid)) return false;
+      g.picked = g.picked.filter(x => x !== uid);
+      this.notify(db, uid, 'The prize winners for "' + g.title + '" were changed by the artist.', null);
+    });
+  }
+  gamePop(g) {
+    const p = g.prize, info = this.prizeInfo(g);
+    if (p.type === 'custom') return this.mkPop('custom', 'Prize!', 'You won!', info.label + ' from ' + this.user(g.aid).name + '. They’ll contact you about getting it to you.', p.img);
+    if (p.type === 'tickets') return this.mkPop('ticket', '+' + p.amount, 'You won!', info.label + ' for winning "' + g.title + '"');
+    return this.mkPop(p.type, '+' + p.amount, 'You won!', info.label + ' for winning "' + g.title + '"');
+  }
+  claimGamePrize(gid) {
+    const s = this.state, g = (s.db.games || []).find(x => x.id === gid); if (!g || !g.picked.includes(s.me) || g.claims.includes(s.me)) return;
+    this.mut(db => {
+      const gg = db.games.find(x => x.id === gid), u = db.users[s.me], p = gg.prize;
+      gg.claims.push(s.me);
+      if (p.type === 'tickets') u.tickets += p.amount; else if (p.type !== 'custom') u.coins[p.type] += p.amount;
+      this.notify(db, gg.aid, u.name + ' claimed the prize for "' + gg.title + '"' + (p.type === 'custom' ? ' (' + p.text + '). Contact them at ' + u.email + ' to arrange it.' : '.'), { type: 'profile', id: s.me });
+    }, { pop: this.gamePop(g) });
+  }
+
+  // Games tab item
+  gameItem(g, ctx) {
+    const s = this.state, db = s.db, me = ctx.me, info = this.prizeInfo(g);
+    const mine = me ? this.playOf(g.id, me.id) : null, won = !!(mine && mine.won);
+    const picked = !!me && g.picked.includes(me.id), claimed = !!me && g.claims.includes(me.id);
+    const plays = (db.gplays || []).filter(x => x.gid === g.id), winners = plays.filter(x => x.won).length;
+    const v = g.kind === 'cards' ? g.variant : g.kind;
+    const cover = g.kind === 'puzzle' && g.img ? 'background-image: url("' + g.img + '")' : (g.img ? 'background-image: url("' + g.img + '")' : '');
+    let status = '', stCls = 'st';
+    if (ctx.isFan) { if (picked && !claimed) { status = 'Prize won!'; stCls = 'st win'; } else if (claimed) { status = 'Prize claimed'; stCls = 'st done'; } else if (won) { status = 'Won'; stCls = 'st done'; } else if (mine) status = this.plural(mine.plays, 'play', 'plays'); }
+    else if (ctx.isOwner) status = this.plural(winners, 'winner', 'winners');
+    return {
+      title: g.title, desc: g.desc, hasDesc: !!g.desc, label: this.gameLabel(g), how: this.gameHow(g),
+      cover: cover, hasCover: !!cover, coverCls: 'gcover k-' + v + (cover ? ' img' : ''), icon: v,
+      isTrivia: v === 'trivia', isQuiz: v === 'quiz', isCardsIcon: ['solitaire', 'memory', 'hilo', 'blackjack', 'golf'].includes(v), isPuzzle: v === 'puzzle',
+      prize: info, prizeText: info.label, winnersText: this.plural(g.winners, 'prize', 'prizes') + ' to give',
+      hasStatus: !!status, status: status, stCls: stCls,
+      owner: ctx.isOwner, fan: ctx.isFan, visitor: ctx.isVisitor,
+      play: () => this.startGame(g.id), playLabel: won ? 'Play again' : (mine ? 'Play again' : 'Play'),
+      bestText: mine && mine.best != null ? 'Your best: ' + this.scoreText(g, mine.best) : '',
+      hasBest: !!(mine && mine.best != null), wonNote: ctx.isFan && won && !picked && !claimed,
+      wonNoteText: g.picked.length >= g.winners ? 'You won this game. All prizes have been given out.' : 'You won! ' + this.user(g.aid).name + ' picks the prize winners from everyone who won.',
+      canClaim: ctx.isFan && picked && !claimed, claim: () => this.claimGamePrize(g.id), claimedNote: ctx.isFan && claimed,
+      claimedText: g.prize.type === 'custom' ? 'You claimed ' + info.label + '. ' + this.user(g.aid).name + ' will contact you at ' + (me ? me.email : '') + '.' : 'You claimed ' + info.label + '.',
+      claimLabel: 'Claim ' + info.label,
+      edit: () => this.openGmModal(g), del: () => this.confirm('Delete this game?', '"' + g.title + '" and all of its plays and results will be removed. Prizes already claimed stay with the fans.', 'delGm', g.id),
+      winnersGo: () => this.setState({ tab: 'scoreboard', sb: { cat: 'game', sel: g.id } }), tryIt: () => this.startGame(g.id),
+      playsText: this.plural(plays.reduce((a, x) => a + x.plays, 0), 'play', 'plays') + ' · ' + this.plural(winners, 'fan won', 'fans won') + ' · ' + g.picked.length + ' of ' + g.winners + ' prizes given'
+    };
+  }
+
+  // Player screen view
+  playView(me) {
+    const p = this.state.play, g = this.playGame(); if (!p || !g) return { show: false };
+    const G = this.G(), st = p.st, info = this.prizeInfo(g), v = p.v;
+    const pl = { show: true, title: g.title, label: this.gameLabel(g), how: this.gameHow(g), prize: info, practice: p.practice, starting: !!p.starting,
+      close: () => this.closeGame(), again: () => this.startGame(g.id), over: p.over, won: p.over && p.won, lost: p.over && !p.won, msg: p.msg || '', hasMsg: !!p.msg && !p.over,
+      hint: p.hint || '', hasHint: !!p.hint,
+      firstWin: !!p.firstWin, winNote: p.practice ? 'Preview only: your results aren’t recorded.' : (p.firstWin ? 'Your win is recorded. ' + this.user(g.aid).name + ' picks prize winners from everyone who wins, so keep an eye on your notifications.' : 'Your best result is saved on the Scoreboard.'),
+      isTrivia: v === 'trivia', isQuiz: v === 'quiz', isSol: v === 'solitaire', isGolf: v === 'golf', isMem: v === 'memory', isHilo: v === 'hilo', isBj: v === 'blackjack', isPuz: v === 'puzzle', stat: '' };
+    if (p.starting) return pl;
+    if (v === 'trivia') {
+      const q = g.qs[st.i] || g.qs[0], n = g.qs.length, secs = g.secs || 15;
+      Object.assign(pl, { qn: 'Question ' + (st.i + 1) + ' of ' + n, q: q.q, left: Math.ceil(st.left), barStyle: 'width: ' + Math.max(0, Math.min(100, st.left / secs * 100)) + '%', barCls: st.left < 4 ? 'tbar low' : 'tbar',
+        stat: st.right + ' right', fbRight: st.fb === 'right', fbWrong: st.fb === 'wrong', fbTime: st.fb === 'time',
+        opts: q.opts.map((o, i) => ({ label: o, letter: 'ABCD'[i], cls: 'opt' + (st.picked === i ? (st.fb === 'right' ? ' right' : st.fb === 'wrong' ? ' wrong' : ' on') : ''), dis: st.busy || p.over, pick: () => this.triviaAnswer(i) })) });
+    }
+    if (v === 'quiz') {
+      const ans = st.answers, done = ans.filter(x => x != null).length;
+      Object.assign(pl, { stat: done + ' of ' + g.qs.length + ' answered', qDone: st.done, notDone: !st.done, busy: !!st.busy, submit: () => this.quizSubmit(),
+        qs: g.qs.map((q, qi) => ({ n: qi + 1, q: q.q, opts: q.opts.map((o, oi) => ({ label: o, letter: 'ABCD'[oi], cls: ans[qi] === oi ? 'opt on' : 'opt', pick: () => this.quizPick(qi, oi), dis: st.done, on: ans[qi] === oi })) })) });
+    }
+    if (v === 'solitaire') {
+      const top = (arr) => arr.length ? arr[arr.length - 1] : null;
+      Object.assign(pl, { stat: st.moves + ' moves', canUndo: st.undo.length > 0 && !p.over, noUndo: !(st.undo.length > 0 && !p.over), undo: () => this.solUndo(),
+        stockEmpty: !st.stock.length, stockCount: st.stock.length, stockCard: this.cardV({ up: false }, g, { tap: () => this.solTap('stock') }), stockTap: () => this.solTap('stock'),
+        waste: top(st.waste) ? this.cardV(top(st.waste), g, { tap: () => this.solTap('waste', st.waste.length - 1) }) : null, hasWaste: st.waste.length > 0,
+        found: st.found.map((f, i) => ({ has: f.length > 0, empty: !f.length, sym: ['♠', '♥', '♦', '♣'][i], card: f.length ? this.cardV(top(f), g, { tap: () => this.solTap('f' + i, f.length - 1) }) : {} })),
+        cols: st.tab.map((col, i) => {
+          let off = 0;
+          const cards = col.map((c, ci) => { const y = off; off += c.up ? 1 : 0.42; return this.cardV(c, g, { tap: () => this.solTap('t' + i, ci), style2: 'top: calc(var(--cw) * ' + (y * 0.42).toFixed(3) + ')' }); });
+          cards.forEach(c => { c.style = [c.style, c.style2].filter(Boolean).join('; '); });
+          return { cards: cards, empty: !col.length, style: 'height: calc(var(--ch) + var(--cw) * ' + (Math.max(0, off - (col.length && col[col.length - 1].up ? 1 : 0.42)) * 0.42).toFixed(3) + ')' };
+        }) });
+    }
+    if (v === 'golf') {
+      const top = st.found[st.found.length - 1];
+      Object.assign(pl, { stat: G.golf.left(st) + ' cards to clear · ' + st.stock.length + ' in stock', gStock: st.stock.length, gStockEmpty: !st.stock.length, gDraw: () => this.golfTap(-1), gStockCard: this.cardV({ up: false }, g),
+        gTop: this.cardV(top, g),
+        gCols: st.tab.map((col, i) => ({ empty: !col.length, cards: col.map((c, ci) => { const cv = this.cardV(c, g, { tap: () => this.golfTap(i), last: ci === col.length - 1 }); cv.style = 'top: calc(var(--cw) * ' + (ci * 0.42).toFixed(2) + ')'; cv.cls += ci === col.length - 1 ? ' live' : ' dim'; return cv; }), style: 'height: calc(var(--ch) + var(--cw) * ' + (Math.max(0, col.length - 1) * 0.42).toFixed(2) + ')' })) });
+    }
+    if (v === 'memory') Object.assign(pl, { stat: st.moves + ' moves · ' + G.memory.pairs(st) + ' of 8 pairs', mem: st.cards.map((c, i) => { const cv = this.cardV(c, g, { tap: () => this.memFlip(i) }); if (c.done) cv.cls += ' done'; return cv; }) });
+    if (v === 'hilo') Object.assign(pl, { stat: 'Streak ' + st.streak + ' of ' + (g.target || 7), hCur: this.cardV(st.cur, g), hasPrev: !!st.prev, hPrev: st.prev ? this.cardV(st.prev, g) : {},
+      hLast: st.last === 'right' ? 'Right!' : st.last === 'same' ? 'Same rank: no change' : st.last === 'wrong' ? 'Wrong!' : 'Will the next card be higher or lower?', hLastCls: 'hlast ' + (st.last || ''),
+      hi: () => this.hiloGuess('hi'), lo: () => this.hiloGuess('lo'), hDis: p.over, dots: Array.from({ length: g.target || 7 }, (_, i) => ({ cls: i < st.streak ? 'sdot on' : 'sdot' })) });
+    if (v === 'blackjack') {
+      const t = g.target || 3, dTot = st.phase === 'done' ? G.bj.total(st.dealer) : G.bj.total([st.dealer[0]]);
+      Object.assign(pl, { stat: 'You ' + st.wins + ' · Dealer ' + st.losses + ' · first to ' + t, bPlayer: st.player.map(c => this.cardV(c, g)), bDealer: st.dealer.map(c => this.cardV(c, g)),
+        bPT: G.bj.total(st.player), bDT: st.phase === 'done' ? dTot : dTot + ' + ?', bPlay: st.phase === 'play' && !p.over, bDone: st.phase === 'done' && !p.over, bMsg: st.msg || '', hasBMsg: st.phase === 'done' && !!st.msg,
+        hit: () => this.bjAct('hit'), stand: () => this.bjAct('stand'), next: () => this.bjAct('deal') });
+    }
+    if (v === 'puzzle') {
+      const z = st.size;
+      Object.assign(pl, { stat: st.moves + ' moves · ' + G.puzzle.placed(st) + ' of ' + z * z + ' in place', puzStyle: 'grid-template-columns: repeat(' + z + ', 1fr)', puzImg: g.img,
+        tiles: st.order.map((t, i) => { const x = t % z, y = Math.floor(t / z); return { cls: 'ptile' + (st.sel === i ? ' sel' : '') + (t === i ? ' ok' : ''), style: 'background-image: url("' + g.img + '"); background-size: ' + z * 100 + '% ' + z * 100 + '%; background-position: ' + (z > 1 ? x / (z - 1) * 100 : 0) + '% ' + (z > 1 ? y / (z - 1) * 100 : 0) + '%', tap: () => this.puzTap(i), label: 'Tile ' + (i + 1) }; }) });
+    }
+    return pl;
+  }
+
   renderVals() {
     const want = this.props.start || 'login';
     if (want !== this._start) { this._start = want; setTimeout(() => this.setState(this.applyStart(want, this.initState())), 0); }
@@ -831,7 +1254,7 @@ class Component extends DCLogic {
     };
 
     // artist page
-    let ap = {}, tabs = [], pn = {}, blocks = [], sb = {};
+    let ap = {}, tabs = [], pn = {}, blocks = [], sb = {}, gms = [];
     if (A && me) {
       const following = me.following.includes(A.id);
       // wins waiting for this fan on this artist
@@ -839,6 +1262,7 @@ class Component extends DCLogic {
       if (isFan) {
         db.challenges.filter(c => c.aid === A.id && c.winner === me.id && !c.claimed).forEach(c => wins.push({ t: c.title, tab: c.ev ? 'showday' : 'challenges', id: c.id }));
         db.lotteries.filter(l => l.aid === A.id && l.picked.includes(me.id) && !l.claims.includes(me.id)).forEach(l => wins.push({ t: l.title, tab: 'lottery', id: l.id }));
+        (db.games || []).filter(g => g.aid === A.id && g.picked.includes(me.id) && !g.claims.includes(me.id)).forEach(g => wins.push({ t: g.title, tab: 'games', id: g.id }));
       }
       ap = {
         hasLv: me.role === 'fan', lv: me.role === 'fan' ? this.levelInfo(me) : {},
@@ -866,27 +1290,45 @@ class Component extends DCLogic {
         let n = 0; evc.forEach(c => { const it = this.chItem(c, ctx); if (it) { blocks.push(it); n++; } });
         blocks.push({ isEvFoot: true, isEvHead: false, isCh: false, isLt: false, noCh: n === 0, owner: isOwner, add: () => this.openChModal(null, e.id) });
       });
+      if (T === 'games') gms = (db.games || []).filter(g => g.aid === A.id).sort((x, y) => y.at - x.at).map(g => this.gameItem(g, ctx));
       if (T === 'lottery') db.lotteries.filter(l => l.aid === A.id).sort((x, y) => y.at - x.at).forEach(l => blocks.push(this.ltItem(l, ctx)));
       const P = {
         challenges: { heading: isOwner ? 'Your Challenges' : 'Challenges', createLabel: 'Create Challenge', create: () => this.openChModal(null, null), emptyTitle: 'No challenges yet', emptyText: isOwner ? 'Create your first challenge. Fans can pick from multiple-choice answers (text or images), type their own answer, send an image or artwork, or record a video, and earn the coins you set.' : A.name + ' hasn’t posted any challenges yet. Check back soon.' },
         showday: { heading: isOwner ? 'Your Showday Events' : 'Showday Events', createLabel: 'Create Event', create: () => this.openEvModal(null), emptyTitle: 'No Showday events yet', emptyText: isOwner ? 'Create an event for show day, like a premiere or a concert, then add challenges fans can do on the day.' : 'No Showday events yet. When ' + A.name + ' announces one, its challenges show up here.' },
+        games: { heading: isOwner ? 'Your Games' : 'Games', createLabel: 'Create Game', create: () => this.openGmModal(null), emptyTitle: 'No games yet', emptyText: isOwner ? 'Create a game for your fans: Trivia, a Quiz, Solitaire, a classic card game or a picture Puzzle. Add your own questions, card design or image, and set the prize.' : A.name + ' hasn’t posted any games yet. Check back soon.' },
         lottery: { heading: isOwner ? 'Your Lotteries' : 'Lottery', createLabel: 'Create Lottery', create: () => this.openLtModal(null), emptyTitle: 'No lotteries yet', emptyText: isOwner ? 'Offer an experience, like dinner with the cast, and set how many tickets each entry costs and how many winners there are.' : 'No lotteries open right now.' }
       }[T] || {};
-      const hint = T === 'lottery' && isFan ? 'You have ' + this.plural(me.tickets, 'ticket', 'tickets') + '. Enter as many times as your tickets allow. More entries, better odds.' : (T === 'challenges' && isFan ? 'Tap a challenge to see the details and take part. Every submission earns its coin reward.' : (T === 'showday' && isFan ? 'Challenges to do on the day of the show. You can see what other fans submitted too.' : ''));
-      pn = Object.assign({ isList: ['challenges', 'showday', 'lottery'].includes(T), isScore: T === 'scoreboard', isGames: T === 'games', canCreate: isOwner, empty: blocks.length === 0, hint: hint, hasHint: !!hint }, P);
+      const hint = T === 'lottery' && isFan ? 'You have ' + this.plural(me.tickets, 'ticket', 'tickets') + '. Enter as many times as your tickets allow. More entries, better odds.' : (T === 'challenges' && isFan ? 'Tap a challenge to see the details and take part. Every submission earns its coin reward.' : (T === 'showday' && isFan ? 'Challenges to do on the day of the show. You can see what other fans submitted too.' : (T === 'games' && isFan ? 'Play as often as you like. Win a game and ' + A.name + ' can pick you for its prize.' : '')));
+      pn = Object.assign({ isList: ['challenges', 'showday', 'lottery'].includes(T), isScore: T === 'scoreboard', isGames: T === 'games', canCreate: isOwner, empty: T === 'games' ? gms.length === 0 : blocks.length === 0, hint: hint, hasHint: !!hint }, P);
 
       // scoreboard
       if (T === 'scoreboard') {
         const cat = s.sb.cat;
-        const list = cat === 'lottery' ? db.lotteries.filter(l => l.aid === A.id) : chs.filter(c => cat === 'showday' ? !!c.ev : !c.ev);
+        const list = cat === 'lottery' ? db.lotteries.filter(l => l.aid === A.id) : cat === 'game' ? (db.games || []).filter(g => g.aid === A.id).sort((x, y) => y.at - x.at) : chs.filter(c => cat === 'showday' ? !!c.ev : !c.ev);
         const sel = list.find(x => x.id === s.sb.sel) || list[0] || null;
         sb = {
           cat: cat, setCat: val(v => this.setState({ sb: { cat: v, sel: '' } })), empty: list.length === 0,
-          emptyText: cat === 'lottery' ? 'No lotteries have been created yet.' : (cat === 'showday' ? 'No Showday challenges yet.' : 'No challenges yet.'),
-          items: list.map(x => { const n = cat === 'lottery' ? db.entries.filter(e => e.lid === x.id).reduce((p, q) => p + q.n, 0) : db.subs.filter(y => y.cid === x.id).length; const on = sel && sel.id === x.id; return { title: x.title, meta: this.plural(n, cat === 'lottery' ? 'entry' : 'submission', cat === 'lottery' ? 'entries' : 'submissions'), on: !!on, cls: on ? 'sbi on' : 'sbi', pick: () => this.setState({ sb: { cat: cat, sel: x.id } }) }; }),
+          emptyText: cat === 'game' ? 'No games have been created yet.' : cat === 'lottery' ? 'No lotteries have been created yet.' : (cat === 'showday' ? 'No Showday challenges yet.' : 'No challenges yet.'),
+          items: list.map(x => { const n = cat === 'game' ? (db.gplays || []).filter(y => y.gid === x.id && y.won).length : cat === 'lottery' ? db.entries.filter(e => e.lid === x.id).reduce((p, q) => p + q.n, 0) : db.subs.filter(y => y.cid === x.id).length; const on = sel && sel.id === x.id; return { title: x.title, meta: cat === 'game' ? this.plural(n, 'winner', 'winners') : this.plural(n, cat === 'lottery' ? 'entry' : 'submission', cat === 'lottery' ? 'entries' : 'submissions'), on: !!on, cls: on ? 'sbi on' : 'sbi', pick: () => this.setState({ sb: { cat: cat, sel: x.id } }) }; }),
           hasSel: !!sel, rows: [], canDraw: false
         };
-        if (sel && cat !== 'lottery') {
+        if (sel && cat === 'game') {
+          const g = sel, info = this.prizeInfo(g), lb = this.lowerBetter(g);
+          const plays = (db.gplays || []).filter(x => x.gid === g.id && db.users[x.uid]).sort((x, y) => (y.won - x.won) || (x.best == null) - (y.best == null) || (lb ? x.best - y.best : y.best - x.best) || (x.wonAt || 0) - (y.wonAt || 0));
+          const full = g.picked.length >= g.winners, names = g.picked.map(id => this.user(id).name).join(', ');
+          Object.assign(sb, {
+            title: g.title, meta: this.gameLabel(g) + ' · Prize: ' + info.label + ' · ' + this.plural(g.winners, 'prize', 'prizes') + ' · ' + this.plural(plays.filter(x => x.won).length, 'fan won', 'fans won'),
+            status: g.picked.length ? g.picked.length + ' of ' + g.winners + ' prizes given: ' + names + '.' + (isOwner && !full ? ' You can pick ' + (g.winners - g.picked.length) + ' more.' : '') : (isOwner ? 'No prize winners yet. Pick from the fans who won the game below (up to ' + g.winners + ').' : 'No prize winners picked yet.'),
+            statusCls: g.picked.length ? 'note ok' : 'note', noRows: plays.length === 0, noRowsText: 'Nobody has played yet.',
+            rows: plays.map(x => { const u = this.user(x.uid), isW = g.picked.includes(x.uid), cl = g.claims.includes(x.uid);
+              return { name: u.name, av: this.av(u), go: () => this.openProfile(u.id), when: this.ago(x.wonAt || x.at), isGame: true,
+                gameText: (x.won ? 'Won' + (x.best != null ? ' · best ' + this.scoreText(g, x.best) : '') : 'Not won yet') + ' · ' + this.plural(x.plays, 'play', 'plays'),
+                isWinner: isW, cls: isW ? 'sub win' : 'sub', winLabel: cl ? 'Prize winner · claimed' : 'Prize winner',
+                canPick: isOwner && x.won && !isW && !full, pickLabel: 'Give prize', pick: () => this.pickGameWinner(g.id, x.uid),
+                canUnpick: isOwner && isW && !cl, unpick: () => this.unpickGameWinner(g.id, x.uid) }; })
+          });
+        }
+        if (sel && cat !== 'lottery' && cat !== 'game') {
           const c = sel, subs = db.subs.filter(x => x.cid === c.id).sort((x, y) => y.at - x.at), w = c.winner ? this.user(c.winner) : null;
           const ev = c.ev ? db.events.find(e => e.id === c.ev) : null;
           Object.assign(sb, {
@@ -941,6 +1383,8 @@ class Component extends DCLogic {
       const acts = [];
       db.subs.filter(x => x.uid === P.id).forEach(x => { const c = db.challenges.find(y => y.id === x.cid); if (!c) return; acts.push({ at: x.at, text: 'Took part in "' + c.title + '"', sub: this.user(c.aid).name + (c.ev ? ' · Showday' : ' · Challenge'), go: () => this.openArtist(c.aid, c.ev ? 'showday' : 'challenges', c.id) }); });
       db.challenges.filter(c => c.winner === P.id).forEach(c => acts.push({ at: c.at + 1, text: 'Won "' + c.title + '"', sub: this.user(c.aid).name, go: () => this.openArtist(c.aid, c.ev ? 'showday' : 'challenges', c.id) }));
+      (db.gplays || []).filter(x => x.uid === P.id && x.won).forEach(x => { const g = (db.games || []).find(y => y.id === x.gid); if (g) acts.push({ at: x.wonAt || x.at, text: 'Won the game "' + g.title + '"', sub: this.user(g.aid).name + ' · ' + this.gameLabel(g), go: () => this.openArtist(g.aid, 'games') }); });
+      (db.games || []).filter(g => g.aid === P.id).forEach(g => acts.push({ at: g.at, text: 'Posted a game: "' + g.title + '"', sub: this.gameLabel(g), go: () => this.openArtist(P.id, 'games') }));
       db.challenges.filter(c => c.aid === P.id).forEach(c => acts.push({ at: c.at, text: 'Posted ' + (c.ev ? 'a Showday challenge' : 'a challenge') + ': "' + c.title + '"', sub: c.ev ? 'Showday' : 'Challenges', go: () => this.openArtist(P.id, c.ev ? 'showday' : 'challenges', c.id) }));
       db.lotteries.filter(l => l.aid === P.id).forEach(l => acts.push({ at: l.at, text: 'Opened a lottery: "' + l.title + '"', sub: 'Lottery', go: () => this.openArtist(P.id, 'lottery', l.id) }));
       db.entries.filter(e => e.uid === P.id).forEach(e => { const l = db.lotteries.find(y => y.id === e.lid); if (!l) return; acts.push({ at: e.at, text: 'Entered the lottery "' + l.title + '"', sub: this.user(l.aid).name + ' · ' + this.plural(e.n, 'entry', 'entries'), go: () => this.openArtist(l.aid, 'lottery', l.id) }); });
@@ -984,9 +1428,9 @@ class Component extends DCLogic {
     if (md.show) {
       const k = M.kind;
       md = Object.assign(md, {
-        d: M, isCh: k === 'ch', isEv: k === 'ev', isLt: k === 'lt', isConfirm: k === 'confirm', isPeople: k === 'people', isNotifs: k === 'notifs', isMe: k === 'me', isEdit: k === 'edit', isDelete: k === 'delete', delStage1: k === 'delete' && (M.stage || 1) === 1, delStage2: k === 'delete' && M.stage === 2,
+        d: M, isGm: k === 'gm', isCh: k === 'ch', isEv: k === 'ev', isLt: k === 'lt', isConfirm: k === 'confirm', isPeople: k === 'people', isNotifs: k === 'notifs', isMe: k === 'me', isEdit: k === 'edit', isDelete: k === 'delete', delStage1: k === 'delete' && (M.stage || 1) === 1, delStage2: k === 'delete' && M.stage === 2,
         hasErr: !!M.err, meArtist: me.role === 'artist', meName: me.name, themeHint: me.role === 'artist' ? ', page theme' : '',
-        hasActions: ['ch', 'ev', 'lt', 'confirm', 'edit', 'delete'].includes(k), cancelLabel: k === 'confirm' ? 'Keep it' : 'Cancel', back: () => this.setState({ modal: k === 'delete' ? M.backTo : null }),
+        hasActions: ['ch', 'gm', 'ev', 'lt', 'confirm', 'edit', 'delete'].includes(k), cancelLabel: k === 'confirm' ? 'Keep it' : 'Cancel', back: () => this.setState({ modal: k === 'delete' ? M.backTo : null }),
         okCls: (k === 'confirm' || k === 'delete') ? 'btn danger' : 'btn grad', okDisabled: k === 'delete' && M.stage === 2 && (M.typed || '').trim() !== 'DELETE'
       });
       if (k === 'ch') Object.assign(md, {
@@ -995,6 +1439,29 @@ class Component extends DCLogic {
         opts: [0, 1, 2, 3].map(i => ({ ph: 'Option ' + 'ABCD'[i], letter: 'ABCD'[i], val: M['o' + i] || '', set: val(v => this.setM('o' + i, v)), img: M['i' + i] || '', hasImg: !!M['i' + i], noImg: !M['i' + i], onImg: (e) => this.mFile('i' + i, e), clearImg: () => this.setM('i' + i, '') })),
         rts: [['silver', 'Silver'], ['gold', 'Gold']].map(t => ({ label: t[1], img: this.coin(t[0]), on: M.rt === t[0], cls: M.rt === t[0] ? 'on' : '', pick: () => this.setM('rt', t[0]) }))
       });
+      if (k === 'gm') {
+        const gk = M.gk, v = gk === 'cards' ? M.variant : gk;
+        Object.assign(md, {
+          title: M.id ? 'Edit game' : 'Create game', okLabel: M.id ? 'Save changes' : 'Create game', ok: () => this.saveGm(), isNew: !M.id,
+          kinds: this.gameKinds().map(x => ({ label: x[1], blurb: x[2], on: gk === x[0], cls: gk === x[0] ? 'kopt on' : 'kopt', pick: () => this.setM('gk', x[0]), isTrivia: x[0] === 'trivia', isQuiz: x[0] === 'quiz', isCards: x[0] === 'solitaire' || x[0] === 'cards', isPuzzle: x[0] === 'puzzle' })),
+          kindName: (this.gameKinds().find(x => x[0] === gk) || [])[1], kindBlurb: (this.gameKinds().find(x => x[0] === gk) || [])[2],
+          hasQs: gk === 'trivia' || gk === 'quiz', isTriviaK: gk === 'trivia', isQuizK: gk === 'quiz', isCardsK: gk === 'cards', hasBack: gk === 'solitaire' || gk === 'cards', isPuzzleK: gk === 'puzzle',
+          isHilo: v === 'hilo', isBj: v === 'blackjack',
+          vars: this.variants().map(x => ({ label: x[1], on: M.variant === x[0], cls: M.variant === x[0] ? 'on' : '', pick: () => this.setM('variant', x[0]) })),
+          sizes: [3, 4, 5].map(z => ({ label: z + ' × ' + z, on: M.size === String(z), cls: M.size === String(z) ? 'on' : '', pick: () => this.setM('size', String(z)) })),
+          hasImg: !!M.img, noImg: !M.img, imgStyle: M.img ? 'background-image: url("' + M.img + '")' : '', onImg: (e) => this.mFile('img', e), clearImg: () => this.setM('img', ''),
+          imgLabel: gk === 'puzzle' ? (M.img ? 'Change puzzle image' : 'Upload puzzle image') : (M.img ? 'Change card back design' : 'Upload card back design'),
+          qsCount: this.plural(M.qs.length, 'question', 'questions'), canAddQ: M.qs.length < 20, addQ: () => this.addQ(),
+          qs: M.qs.map((q, i) => ({ n: i + 1, q: q.q, setQ: val(x => this.setQf(i, 'q', x)), canDel: M.qs.length > 1, del: () => this.delQ(i),
+            opts: q.o.map((o, oi) => ({ letter: 'ABCD'[oi], val: o, ph: 'Answer ' + 'ABCD'[oi] + (oi > 1 ? ' (optional)' : ''), set: val(x => this.setQf(i, 'o', x, oi)), on: q.ans === oi, markCls: q.ans === oi ? 'mark on' : 'mark', mark: () => this.setQf(i, 'ans', oi), markLabel: (q.ans === oi ? 'Correct answer: ' : 'Mark as correct: ') + 'answer ' + 'ABCD'[oi] + ' of question ' + (i + 1) })) })),
+          setSecs: val(x => this.setM('secs', x)), setPass: val(x => this.setM('pass', x)), setTarget: val(x => this.setM('target', x)),
+          passPh: String(M.qs.length), targetPh: v === 'hilo' ? '7' : '3', targetLabel: v === 'hilo' ? 'Correct guesses in a row to win' : 'Hands to win (first to)',
+          pts: [['silver', 'Silver'], ['gold', 'Gold'], ['green', 'Green'], ['tickets', 'Tickets'], ['custom', 'Other']].map(x => ({ label: x[1], img: x[0] === 'tickets' || x[0] === 'custom' ? '' : this.coin(x[0]), hasImg: x[0] !== 'tickets' && x[0] !== 'custom', isTicket: x[0] === 'tickets', isCustom: x[0] === 'custom', on: M.pt === x[0], cls: M.pt === x[0] ? 'on' : '', pick: () => this.setM('pt', x[0]) })),
+          ptCustom: M.pt === 'custom', ptAmount: M.pt !== 'custom', setPa: val(x => this.setM('pa', x)), setPtext: val(x => this.setM('ptext', x)), setWinners: val(x => this.setM('winners', x)),
+          hasPimg: !!M.pimg, noPimg: !M.pimg, onPimg: (e) => this.mFile('pimg', e), clearPimg: () => this.setM('pimg', ''),
+          paLabel: M.pt === 'tickets' ? 'Tickets per winner' : 'Coins per winner'
+        });
+      }
       if (k === 'ev') Object.assign(md, { title: M.id ? 'Edit event' : 'Create Showday event', okLabel: M.id ? 'Save changes' : 'Create event', ok: () => this.saveEv() });
       if (k === 'lt') Object.assign(md, { title: M.id ? 'Edit lottery' : 'Create lottery', okLabel: M.id ? 'Save changes' : 'Create lottery', ok: () => this.saveLt() });
       if (k === 'confirm') Object.assign(md, { title: M.title, okLabel: M.okLabel, ok: () => this.doConfirm() });
@@ -1022,7 +1489,7 @@ class Component extends DCLogic {
 
     return {
       themeStyle: this.themeCss(themeKey), showHeader: !!me && !scr.auth && !scr.setup && !scr.terms, scr: scr, hdr: hdr, f: f, mf: mf, auth: auth, su: su,
-      genreCards: genreCards, gp: gp, ex: ex, srch: srch, tm: tm, ap: ap, tabs: tabs, pn: pn, blocks: blocks, sb: sb, cm: cm, pf: pf, ch: ch, md: md, pp: pp, lp: lp,
+      genreCards: genreCards, gp: gp, ex: ex, srch: srch, tm: tm, ap: ap, tabs: tabs, pn: pn, blocks: blocks, gms: gms, pl: me ? this.playView(me) : { show: false }, sb: sb, cm: cm, pf: pf, ch: ch, md: md, pp: pp, lp: lp,
       q: s.q, reply: s.reply, chatText: s.chatText,
       nav: { canBack: !!me && !scr.auth && !scr.setup && !scr.terms && (s.hist || []).length > 0, back: () => this.back() },
       goHome: () => this.home(), goExplore: () => this.go('pickGenre'), goSearch: () => this.go('search'), goCommunity: () => this.go('community'),

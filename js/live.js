@@ -12,12 +12,15 @@
   const orig = {};
   ['renderVals', 'doLogin', 'doSignup', 'doForgot', 'logout', 'suNext', 'pickGenre', 'toggleFollow', 'openChat', 'sendChat',
    'submit', 'cancelSub', 'claim', 'hideCard', 'pickWinner', 'unpickWinner', 'enterLottery', 'draw', 'claimLottery',
-   'saveCh', 'saveEv', 'saveLt', 'doConfirm', 'saveEdit', 'deleteAccount', 'postTopic', 'sendReply', 'suFile', 'mFile', 'ansFile', 'vote', 'acceptTerms', 'declineTerms']
+   'saveCh', 'saveEv', 'saveLt', 'doConfirm', 'saveEdit', 'deleteAccount', 'postTopic', 'sendReply', 'suFile', 'mFile', 'ansFile', 'vote', 'acceptTerms', 'declineTerms', 'saveGm', 'gStart', 'gWin', 'gradeTrivia', 'gradeQuiz', 'pickGameWinner', 'unpickGameWinner', 'claimGamePrize']
     .forEach((k) => { orig[k] = P[k]; });
 
   const TABLES = ['profiles', 'artist_genres', 'follows', 'wallets', 'showday_events', 'challenges', 'submissions',
-    'hidden_challenge_cards', 'lotteries', 'lottery_entries', 'lottery_winners', 'forum_threads', 'forum_replies', 'messages', 'notifications', 'submission_votes'];
-  const emptyDb = () => ({ users: {}, challenges: [], events: [], lotteries: [], subs: [], entries: [], hidden: [], votes: [], forums: [], msgs: [], notifs: [] });
+    'hidden_challenge_cards', 'lotteries', 'lottery_entries', 'lottery_winners', 'forum_threads', 'forum_replies', 'messages', 'notifications', 'submission_votes',
+    'games', 'game_questions', 'game_answers', 'game_plays', 'game_prize_winners'];
+  // tables added by later SQL files: the app still works (without that feature) until they are run
+  const OPTIONAL = ['submission_votes', 'games', 'game_questions', 'game_answers', 'game_plays', 'game_prize_winners'];
+  const emptyDb = () => ({ users: {}, challenges: [], events: [], lotteries: [], subs: [], entries: [], hidden: [], votes: [], forums: [], msgs: [], notifs: [], games: [], gplays: [] });
   const T = (s) => (s ? Date.parse(s) : 0);
   const must = (res) => { if (res && res.error) throw res.error; return res ? res.data : null; };
   const EMAIL = /^\S+@\S+\.\S+$/;
@@ -78,7 +81,7 @@
     if (this.chan) return;
     const schedule = () => { clearTimeout(this._rt); this._rt = setTimeout(() => reload.call(this).catch(() => {}), 400); };
     this.chan = this.sb.channel('collabz-live');
-    ['messages', 'notifications', 'submissions', 'submission_votes', 'challenges', 'lottery_winners', 'lottery_entries', 'forum_threads', 'forum_replies', 'follows', 'showday_events', 'lotteries', 'wallets']
+    ['messages', 'notifications', 'submissions', 'submission_votes', 'challenges', 'lottery_winners', 'lottery_entries', 'forum_threads', 'forum_replies', 'follows', 'showday_events', 'lotteries', 'wallets', 'games', 'game_plays', 'game_prize_winners']
       .forEach((t) => this.chan.on('postgres_changes', { event: '*', schema: 'public', table: t }, schedule));
     this.chan.subscribe();
   }
@@ -95,7 +98,7 @@
     const d = {};
     TABLES.forEach((t, i) => {
       // votes are optional until supabase/002_submission_votes.sql has been run
-      if (t === 'submission_votes' && res[i].error) { d[t] = []; return; }
+      if (OPTIONAL.includes(t) && res[i].error) { d[t] = []; return; }
       d[t] = must(res[i]) || [];
     });
     const db = emptyDb();
@@ -127,6 +130,18 @@
     db.forums = d.forum_threads.map((t) => ({ id: t.id, uid: t.author_id, title: t.title, body: t.body || '', at: T(t.created_at),
       replies: d.forum_replies.filter((r) => r.thread_id === t.id).sort((a, b) => T(a.created_at) - T(b.created_at)).map((r) => ({ uid: r.author_id, text: r.body, at: T(r.created_at) })) }));
     db.msgs = d.messages.map((m) => ({ id: m.id, from: m.sender_id, to: m.recipient_id, text: m.body, at: T(m.created_at), read: !!m.read_at }));
+    db.games = d.games.map((g) => {
+      const qs = d.game_questions.filter((q) => q.game_id === g.id).sort((a, b) => a.position - b.position).map((q) => {
+        const a = d.game_answers.find((x) => x.question_id === q.id);   // only the game's artist can see answers
+        return { id: q.id, q: q.question, opts: q.options || [], ans: a ? a.correct : null };
+      });
+      const w = d.game_prize_winners.filter((x) => x.game_id === g.id).sort((a, b) => T(a.picked_at) - T(b.picked_at));
+      return { id: g.id, aid: g.artist_id, kind: g.kind, variant: g.variant, title: g.title, desc: g.description || '', img: g.image_url || '',
+        size: g.puzzle_size, secs: g.seconds_per_q, pass: g.pass_mark, target: g.target, qs: qs,
+        prize: { type: g.prize_type, amount: g.prize_amount, text: g.prize_text || '', img: g.prize_image_url || '' }, winners: g.winner_count,
+        picked: w.map((x) => x.fan_id), claims: w.filter((x) => x.claimed_at).map((x) => x.fan_id), at: T(g.created_at) };
+    });
+    db.gplays = d.game_plays.map((p) => ({ gid: p.game_id, uid: p.fan_id, plays: p.plays, won: p.won, best: p.best_score, wonAt: T(p.won_at), at: T(p.last_played_at) }));
     db.notifs = d.notifications.map((n) => ({ id: n.id, uid: n.user_id, text: n.body, at: T(n.created_at), read: !!n.read_at, link: n.link || null }));
     this.setState({ db: db });
   }
@@ -367,6 +382,40 @@
     }, { modal: null, toast: null });
   });
 
+  // ---------------------------------------------------------------- games
+  wrap('saveGm', function () {
+    const m = this.state.modal, d = this.gmData(m);
+    if (typeof d === 'string') return this.setM('err', d);
+    const needsUpload = (v, k) => (v || '').startsWith('blob:') && this.files['m:' + k];
+    if (needsUpload(m.img, 'img') || needsUpload(m.pimg, 'pimg')) toast.call(this, 'Uploading images…', true);
+    run.call(this, async () => {
+      const img = needsUpload(d.img, 'img') ? await upload.call(this, 'submissions', this.files['m:img']) : d.img;
+      const pimg = needsUpload(d.prize.img, 'pimg') ? await upload.call(this, 'submissions', this.files['m:pimg']) : d.prize.img;
+      const row = { variant: d.variant, title: d.title, description: d.desc, image_url: img || '', puzzle_size: d.size, seconds_per_q: d.secs, pass_mark: d.pass, target: d.target,
+        prize_type: d.prize.type, prize_amount: d.prize.amount, prize_text: d.prize.text, prize_image_url: pimg || '', winner_count: d.winners };
+      let id = m.id;
+      if (id) must(await this.sb.from('games').update(row).eq('id', id));
+      else id = must(await this.sb.from('games').insert(Object.assign({ artist_id: this.state.me, kind: d.kind }, row)).select('id').single()).id;
+      if (d.kind === 'trivia' || d.kind === 'quiz') await rpc.call(this, 'save_game_questions', { p_game: id, p_questions: d.qs.map((q) => ({ q: q.q, opts: q.opts, ans: q.ans })) });
+      delete this.files['m:img']; delete this.files['m:pimg'];
+    }, { modal: null, toast: null });
+  });
+  // These return promises the game player waits on
+  wrap('gStart', function (g) { return rpc.call(this, 'start_game', { p_game: g.id }).then(() => { reload.call(this).catch(() => {}); }); });
+  wrap('gWin', function (g, score) {
+    const done = () => reload.call(this).catch(() => {});
+    if (g.kind === 'trivia' || g.kind === 'quiz') return done();   // graded and recorded by the server
+    return rpc.call(this, 'finish_game', { p_game: g.id, p_score: score }).then(done, (e) => toast.call(this, e));
+  });
+  wrap('gradeTrivia', function (g, i, choice) { return rpc.call(this, 'answer_trivia', { p_game: g.id, p_choice: choice }).then((r) => ({ correct: !!(r && r.correct) })); });
+  wrap('gradeQuiz', function (g, answers) { return rpc.call(this, 'submit_quiz', { p_game: g.id, p_answers: answers }).then((r) => ({ score: r.score, won: !!r.won })); });
+  wrap('pickGameWinner', function (gid, uid) { run.call(this, () => rpc.call(this, 'pick_game_winner', { p_game: gid, p_fan: uid })); });
+  wrap('unpickGameWinner', function (gid, uid) { run.call(this, () => rpc.call(this, 'unpick_game_winner', { p_game: gid, p_fan: uid })); });
+  wrap('claimGamePrize', function (gid) {
+    const g = (this.state.db.games || []).find((x) => x.id === gid); if (!g) return;
+    run.call(this, () => rpc.call(this, 'claim_game_prize', { p_game: gid }), { pop: this.gamePop(g) });
+  });
+
   wrap('saveEv', function () {
     const m = this.state.modal;
     if (!m.title.trim()) return this.setM('err', 'Give the event a name.');
@@ -393,7 +442,7 @@
   wrap('doConfirm', function () {
     const m = this.state.modal, id = m.arg;
     if (m.action === 'cancelSub') return this.cancelSub(id);
-    const table = { delCh: 'challenges', delEv: 'showday_events', delLt: 'lotteries' }[m.action];
+    const table = { delCh: 'challenges', delEv: 'showday_events', delLt: 'lotteries', delGm: 'games' }[m.action];
     if (!table) return this.setState({ modal: null });
     run.call(this, async () => { must(await this.sb.from(table).delete().eq('id', id)); }, { modal: null, open: null });
   });
