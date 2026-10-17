@@ -405,3 +405,43 @@ select.in option,select.in optgroup{background-color:var(--sheet);color:var(--fg
 .coin{font-size:13.6px;gap:5px}
 .coin img{width:22px;height:22px}
 .coin .ticket{width:25.5px;height:18.7px}
+
+/* Image answer options (multiple choice with pictures) */
+.iopts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:640px){.iopts{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.iopt{display:flex;flex-direction:column;gap:0;padding:0;border-radius:14px;border:2px solid var(--line);background:var(--soft);overflow:hidden;text-align:left;color:inherit;transition:border-color .15s,transform .15s,box-shadow .15s}
+button.iopt:hover{transform:translateY(-1px)}
+.iopt.on{border-color:var(--a1);box-shadow:0 0 0 3px var(--ring)}
+.iimg{position:relative;display:block;aspect-ratio:1/1;background:rgba(0,0,0,.25)}
+.iimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.inoimg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:800;color:var(--mu)}
+.iimg .ol{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.55);color:#fff;backdrop-filter:blur(4px)}
+.iopt.on .iimg .ol{background:var(--a1)}
+.ick{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;background:var(--a1);display:none;align-items:center;justify-content:center}
+.ick svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.iopt.on .ick{display:flex}
+.ilab{display:block;padding:9px 10px;font-weight:700;font-size:14px;line-height:1.25;overflow-wrap:anywhere}
+.iopts.own .iopt{border-width:1px}
+.ansthumb{width:120px;height:120px;object-fit:cover;border-radius:12px;display:block;border:1px solid var(--line)}
+.ansthumb.sm{width:44px;height:44px;border-radius:8px;flex:none}
+.ansrow{display:flex;align-items:center;gap:10px;margin:0}
+.gitem img + .ans{height:auto;padding:8px 10px;font-size:13px}
+
+/* Text answers */
+.tans{min-height:96px;resize:vertical}
+.tcount{align-self:flex-end}
+.ans.txt{font-weight:600;font-style:italic;font-size:13px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;height:auto;min-height:120px}
+.tquote{margin:2px 0 0;padding:10px 14px;border-left:3px solid var(--a1);background:var(--soft);border-radius:0 10px 10px 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.45}
+
+/* Create challenge: option rows with an optional image */
+.optrow{display:flex;align-items:center;gap:8px}
+.optrow .in{flex:1;min-width:0}
+.oadd{width:44px;height:44px;flex:none;border-radius:10px;border:1.5px dashed var(--line);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--mu);background:var(--soft)}
+.oadd:hover{border-color:var(--a1);color:var(--fg)}
+.othumb{position:relative;width:44px;height:44px;flex:none}
+.othumb img{width:44px;height:44px;object-fit:cover;border-radius:10px;display:block;border:1px solid var(--line)}
+.oclr{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:0;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.oclr svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round}
+.seg.types{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.seg.types button{white-space:nowrap}
+@media (max-width:520px){.seg.types{grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -16,7 +16,7 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 do $$ begin
-  create type public.challenge_type as enum ('mc', 'image', 'video');
+  create type public.challenge_type as enum ('mc', 'text', 'image', 'video');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -124,6 +124,7 @@ create table if not exists public.challenges (
   description     text not null default '',
   type            public.challenge_type not null,
   options         text[] not null default '{}',
+  option_images   text[] not null default '{}',   -- optional image per option ('' = none)
   reward_coin     public.coin_type not null default 'gold',
   reward_amount   int not null default 1 check (reward_amount between 1 and 1000),
   max_submissions int not null default 100 check (max_submissions >= 1),
@@ -131,7 +132,8 @@ create table if not exists public.challenges (
   winner_claimed  boolean not null default false,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now(),
-  check (type <> 'mc' or coalesce(array_length(options, 1), 0) between 2 and 4)
+  check (type <> 'mc' or coalesce(array_length(options, 1), 0) between 2 and 4),
+  constraint challenges_option_images_check check (coalesce(array_length(option_images, 1), 0) <= 4)
 );
 create index if not exists challenges_artist_idx on public.challenges (artist_id);
 create index if not exists challenges_event_idx on public.challenges (event_id);
@@ -140,7 +142,7 @@ create table if not exists public.submissions (
   id           uuid primary key default gen_random_uuid(),
   challenge_id uuid not null references public.challenges (id) on delete cascade,
   fan_id       uuid not null references public.profiles (id) on delete cascade,
-  answer       text,          -- multiple choice
+  answer       text,          -- multiple choice or text answer
   media_url    text,          -- image or video (storage bucket "submissions")
   created_at   timestamptz not null default now(),
   unique (challenge_id, fan_id)
@@ -388,12 +390,14 @@ declare
   v_uid uuid := auth.uid();
   c public.challenges;
   s public.submissions;
+  v_text boolean;
 begin
   if v_uid is null then raise exception 'Please log in first'; end if;
   if public.is_artist(v_uid) then raise exception 'Only fans can take part in challenges'; end if;
 
   select * into c from public.challenges where id = p_challenge_id for update;
   if not found then raise exception 'Challenge not found'; end if;
+  v_text := c.type::text = 'text';
   if exists (select 1 from public.submissions where challenge_id = c.id and fan_id = v_uid) then
     raise exception 'You already took part in this challenge';
   end if;
@@ -402,12 +406,18 @@ begin
   end if;
   if c.type = 'mc' then
     if p_answer is null or not (p_answer = any (c.options)) then raise exception 'Pick one of the answer options'; end if;
+  elsif v_text then
+    p_answer := btrim(coalesce(p_answer, ''));
+    if p_answer = '' then raise exception 'Type your answer first'; end if;
+    if char_length(p_answer) > 500 then raise exception 'Keep your answer to 500 characters or fewer'; end if;
   elsif coalesce(p_media_url, '') = '' then
     raise exception 'Upload your % first', c.type;
   end if;
 
   insert into public.submissions (challenge_id, fan_id, answer, media_url)
-  values (c.id, v_uid, case when c.type = 'mc' then p_answer end, case when c.type <> 'mc' then p_media_url end)
+  values (c.id, v_uid,
+          case when c.type = 'mc' or v_text then p_answer end,
+          case when c.type <> 'mc' and not v_text then p_media_url end)
   returning * into s;
 
   update public.wallets set
@@ -619,9 +629,9 @@ revoke insert, update, delete on public.wallets from anon, authenticated;
 revoke insert, update on public.artist_genres from anon, authenticated;   -- use set_my_genres()
 
 revoke insert, update on public.challenges from anon, authenticated;
-grant insert (artist_id, event_id, title, description, type, options, reward_coin, reward_amount, max_submissions)
+grant insert (artist_id, event_id, title, description, type, options, option_images, reward_coin, reward_amount, max_submissions)
   on public.challenges to authenticated;
-grant update (event_id, title, description, type, options, reward_coin, reward_amount, max_submissions)
+grant update (event_id, title, description, type, options, option_images, reward_coin, reward_amount, max_submissions)
   on public.challenges to authenticated;
 
 revoke insert, update, delete on public.submissions from anon, authenticated;   -- use submit/cancel functions

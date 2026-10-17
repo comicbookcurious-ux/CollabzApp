@@ -136,7 +136,7 @@ class Component extends DCLogic {
       f1: base({ id: 'f1', role: 'fan', name: 'Jess Tan', email: 'jess@collabz.app', genre: 'film', bio: 'Film nerd and front-row regular.', location: 'Perth, WA', socials: { facebook: '', instagram: 'https://instagram.com', x: '', tiktok: '', youtube: '' }, coins: { silver: 10, gold: 10, green: 0 }, tickets: 10, followers: ['f2'], following: ['a1', 'a5'] }),
       f2: base({ id: 'f2', role: 'fan', name: 'Marco Diaz', email: 'marco@collabz.app', genre: 'music', bio: 'Concerts every weekend.', location: 'Fremantle, WA', coins: { silver: 18, gold: 14, green: 1 }, tickets: 4, following: ['a1', 'a2', 'f1'] })
     };
-    const ch = (o) => Object.assign({ ev: null, options: [], rt: 'gold', rw: 1, max: 100, winner: null, claimed: false, at: t - 2 * D }, o);
+    const ch = (o) => Object.assign({ ev: null, options: [], imgs: [], rt: 'gold', rw: 1, max: 100, winner: null, claimed: false, at: t - 2 * D }, o);
     return {
       users: users,
       challenges: [
@@ -149,7 +149,9 @@ class Component extends DCLogic {
         ch({ id: 'c7', aid: 'a1', title: 'Draw the album cover in your style', desc: 'Upload your artwork. Every style welcome.', type: 'image', rt: 'gold', rw: 2, at: t - 3 * D }),
         ch({ id: 'c8', aid: 'a1', ev: 'e2', title: 'Show me your outfit on the day', desc: 'Snap your concert fit before doors open.', type: 'image', rt: 'silver', rw: 2, max: 200, at: t - D }),
         ch({ id: 'c9', aid: 'a3', title: 'Which track should open the tour?', desc: 'Vote for the opener. Most votes wins the spot.', type: 'mc', options: ['Static Bloom', 'Night Bus', 'Glass Heart'], rt: 'silver', rw: 2, at: t - 2 * D }),
-        ch({ id: 'c10', aid: 'a3', title: 'Remix 15 seconds of my new beat', desc: 'Any software, any style. Upload a short video of it playing.', type: 'video', rt: 'gold', rw: 3, at: t - D })
+        ch({ id: 'c10', aid: 'a3', title: 'Remix 15 seconds of my new beat', desc: 'Any software, any style. Upload a short video of it playing.', type: 'video', rt: 'gold', rw: 3, at: t - D }),
+        ch({ id: 'c11', aid: 'a2', title: 'Pick my outfit for the premiere', desc: 'Tap the look you want to see on the red carpet.', type: 'mc', options: ['Midnight sequins', 'Red leather', 'All white'], imgs: [this.demoImg('#1e1b4b', '#6366f1'), this.demoImg('#7f1d1d', '#ef4444'), this.demoImg('#e5e7eb', '#ffffff')], rt: 'silver', rw: 2, at: t - 6 * H }),
+        ch({ id: 'c12', aid: 'a2', title: 'What should my next film be about?', desc: 'Tell me in a sentence or two. My favourite idea wins.', type: 'text', rt: 'gold', rw: 1, at: t - 3 * H })
       ],
       events: [
         { id: 'e1', aid: 'a2', tag: 'Premiere', title: 'Movie Premier Night', desc: 'Movie premier with the stars watching with the fans.', date: '2026-11-06', time: '19:00', venue: 'AMC Theatre', at: t - D },
@@ -345,15 +347,24 @@ class Component extends DCLogic {
   showPeople(title, ids) { this.setState({ modal: { kind: 'people', title: title, ids: ids.slice() } }); }
 
   // ---------- challenges ----------
+  demoImg(c1, c2) {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c1 + '"/><stop offset="1" stop-color="' + c2 + '"/></linearGradient></defs><rect width="300" height="300" fill="url(#g)"/><circle cx="150" cy="105" r="38" fill="rgba(255,255,255,.35)"/><path d="M95 255 112 160h76l17 95z" fill="rgba(255,255,255,.35)"/></svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+  typeName(t, long) { return (long ? { mc: 'Multiple choice', text: 'Text answer', image: 'Image challenge', video: 'Video challenge' } : { mc: 'Multiple choice', text: 'Text answer', image: 'Image', video: 'Video' })[t] || t; }
+  hasMedia(c) { return c.type === 'image' || c.type === 'video'; }
+  optImg(c, i) { return (c.imgs && c.imgs[i]) || ''; }
+  ansReady(c, d) { return c.type === 'mc' ? d.choice != null : (c.type === 'text' ? !!(d.text || '').trim() : !!d.file); }
+  ansValue(c, d) { return c.type === 'mc' ? c.options[d.choice] : (c.type === 'text' ? (d.text || '').trim().slice(0, 500) : ''); }
   setAns(cid, patch) { const a = Object.assign({}, this.state.ans); a[cid] = Object.assign({}, a[cid] || {}, patch); this.setState({ ans: a }); }
   ansFile(cid, e) { const f = e.target.files && e.target.files[0]; if (!f) return; this.setAns(cid, { file: URL.createObjectURL(f), name: f.name }); }
   submit(cid) {
     const s = this.state, d = s.ans[cid] || {}, c = s.db.challenges.find(x => x.id === cid); if (!c) return;
-    if (c.type === 'mc' ? d.choice == null : !d.file) return;
+    if (!this.ansReady(c, d)) return;
     const ans = Object.assign({}, s.ans); delete ans[cid];
     this.mut(db => {
       const me = db.users[s.me];
-      db.subs.push({ id: this.uid('s'), cid: cid, uid: me.id, answer: c.type === 'mc' ? c.options[d.choice] : '', file: d.file || null, at: Date.now() });
+      db.subs.push({ id: this.uid('s'), cid: cid, uid: me.id, answer: this.ansValue(c, d), file: this.hasMedia(c) ? (d.file || null) : null, at: Date.now() });
       me.coins[c.rt] += c.rw;
       this.notify(db, c.aid, me.name + ' submitted to "' + c.title + '".', { type: 'score', id: c.aid, cat: c.ev ? 'showday' : 'challenge', sel: c.id });
     }, { ans: ans, pop: this.mkPop(c.rt, '+' + c.rw, 'Reward earned!', this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + ' for taking part in "' + c.title + '"') });
@@ -427,22 +438,23 @@ class Component extends DCLogic {
   }
 
   // ---------- modals: create / edit ----------
-  setM(k, v) { this.setState({ modal: Object.assign({}, this.state.modal, { [k]: v, err: '' }) }); }
+  setM(k, v) { this.setState({ modal: Object.assign({}, this.state.modal, { err: '' }, { [k]: v }) }); }
   mFile(k, e) { const f = e.target.files && e.target.files[0]; if (!f) return; const p = { [k]: URL.createObjectURL(f), err: '' }; if (k === 'video') p.videoName = f.name; this.setState({ modal: Object.assign({}, this.state.modal, p) }); }
   openChModal(c, ev) {
-    const o = (c && c.options) || [];
-    this.setState({ modal: { kind: 'ch', id: c ? c.id : null, ev: c ? c.ev : (ev || null), title: c ? c.title : '', desc: c ? c.desc : '', type: c ? c.type : 'image', o0: o[0] || '', o1: o[1] || '', o2: o[2] || '', o3: o[3] || '', rt: c ? c.rt : 'gold', rw: String(c ? c.rw : 1), max: String(c ? c.max : 100), err: '' } });
+    const o = (c && c.options) || [], im = (c && c.imgs) || [];
+    this.setState({ modal: { kind: 'ch', id: c ? c.id : null, ev: c ? c.ev : (ev || null), title: c ? c.title : '', desc: c ? c.desc : '', type: c ? c.type : 'image', o0: o[0] || '', o1: o[1] || '', o2: o[2] || '', o3: o[3] || '', i0: im[0] || '', i1: im[1] || '', i2: im[2] || '', i3: im[3] || '', rt: c ? c.rt : 'gold', rw: String(c ? c.rw : 1), max: String(c ? c.max : 100), err: '' } });
   }
   saveCh() {
     const m = this.state.modal, me = this.state.me;
-    const opts = [m.o0, m.o1, m.o2, m.o3].map(x => (x || '').trim()).filter(Boolean);
+    const mo = this.mcOptions(m), opts = mo.labels;
     const rw = parseInt(m.rw, 10), max = parseInt(m.max, 10);
     if (!m.title.trim()) return this.setM('err', 'Give the challenge a title.');
-    if (m.type === 'mc' && opts.length < 2) return this.setM('err', 'Add at least two answer options.');
+    if (m.type === 'mc' && opts.length < 2) return this.setM('err', 'Add at least two answer options (text, an image, or both).');
+    if (m.type === 'mc' && new Set(opts.map(x => x.toLowerCase())).size !== opts.length) return this.setM('err', 'Each answer option needs a different label.');
     if (!(rw >= 1)) return this.setM('err', 'The reward needs to be at least 1 coin.');
     if (!(max >= 1)) return this.setM('err', 'Allow at least 1 submission.');
     this.mut(db => {
-      const data = { title: m.title.trim(), desc: m.desc.trim(), type: m.type, options: m.type === 'mc' ? opts : [], rt: m.rt, rw: rw, max: max };
+      const data = { title: m.title.trim(), desc: m.desc.trim(), type: m.type, options: m.type === 'mc' ? opts : [], imgs: m.type === 'mc' && mo.imgs.some(Boolean) ? mo.imgs : [], rt: m.rt, rw: rw, max: max };
       if (m.id) Object.assign(db.challenges.find(x => x.id === m.id), data);
       else {
         const c = Object.assign({ id: this.uid('c'), aid: me, ev: m.ev, winner: null, claimed: false, at: Date.now() }, data);
@@ -450,6 +462,16 @@ class Component extends DCLogic {
         db.users[me].followers.forEach(f => this.notify(db, f, db.users[me].name + ' posted a new ' + (m.ev ? 'Showday challenge' : 'challenge') + ': "' + c.title + '"', { type: 'artist', id: me, tab: m.ev ? 'showday' : 'challenges', open: c.id }));
       }
     }, { modal: null });
+  }
+  // Options the artist filled in (text, image or both). An image without text gets a label like "Option B".
+  mcOptions(m) {
+    const labels = [], imgs = [];
+    [0, 1, 2, 3].forEach(i => {
+      const t = (m['o' + i] || '').trim(), im = m['i' + i] || '';
+      if (!t && !im) return;
+      labels.push(t || 'Option ' + 'ABCD'[labels.length]); imgs.push(im);
+    });
+    return { labels: labels, imgs: imgs };
   }
   openEvModal(e) { this.setState({ modal: { kind: 'ev', id: e ? e.id : null, tag: e ? e.tag : 'Premiere', title: e ? e.title : '', desc: e ? e.desc : '', date: e ? e.date : '', time: e ? e.time : '', venue: e ? e.venue : '', err: '' } }); }
   saveEv() {
@@ -619,13 +641,14 @@ class Component extends DCLogic {
       else if (mine) { status = 'Participated'; stCls = 'st done'; }
       else if (full) status = 'Full';
     } else if (ctx.isOwner) { status = c.winner ? (c.claimed ? 'Winner claimed' : 'Winner picked') : this.plural(subs.length, 'entry', 'entries'); if (c.winner) stCls = 'st done'; }
-    const typeLabel = { mc: 'Multiple choice', image: 'Image challenge', video: 'Video challenge' }[c.type];
+    const typeLabel = this.typeName(c.type, true), imgOpts = c.type === 'mc' && (c.imgs || []).some(Boolean);
     const art = this.user(c.aid);
     return {
       isCh: true, isEvHead: false, isEvFoot: false, isLt: false,
       outer: c.ev ? 'evmid' : 'gap', boxCls: open ? 'blk open' : 'blk',
       title: c.title, desc: c.desc || 'No extra details.', typeLabel: typeLabel,
-      isMC: c.type === 'mc', isImage: c.type === 'image', isVideo: c.type === 'video',
+      isMC: c.type === 'mc', isText: c.type === 'text', isImage: c.type === 'image', isVideo: c.type === 'video',
+      imgOpts: imgOpts, txtOpts: c.type === 'mc' && !imgOpts,
       coinImg: this.coin(c.rt), rw: c.rw, rtName: c.rt, rewardText: '+' + c.rw + ' ' + c.rt, count: subs.length,
       countText: subs.length + ' of ' + c.max + ' submissions', artistName: art.name,
       open: open, chevCls: open ? 'i chev up' : 'i chev', toggle: () => this.setState({ open: open ? null : c.id }),
@@ -636,12 +659,14 @@ class Component extends DCLogic {
       canSubmit: ctx.isFan && !mine && !full && !iWon, showFull: ctx.isFan && !mine && full && !iWon,
       participated: ctx.isFan && !!mine && !iWon, wonOpen: ctx.isFan && iWon && !c.claimed, wonDone: ctx.isFan && iWon && c.claimed,
       claim: () => this.claim(c.id), remove: () => this.hideCard(c.id),
-      options: (c.options || []).map((o, i) => ({ label: o, letter: 'ABCD'[i], on: d.choice === i, cls: d.choice === i ? 'opt on' : 'opt', pick: () => this.setAns(c.id, { choice: i }) })),
-      needsFile: c.type !== 'mc', accept: c.type === 'image' ? 'image/*' : 'video/*',
+      options: (c.options || []).map((o, i) => { const im = this.optImg(c, i); return { label: o, letter: 'ABCD'[i], img: im, hasImg: !!im, noImg: !im, on: d.choice === i, cls: d.choice === i ? 'opt on' : 'opt', tcls: d.choice === i ? 'iopt on' : 'iopt', pick: () => this.setAns(c.id, { choice: i }) }; }),
+      textVal: d.text || '', setText: (e) => this.setAns(c.id, { text: e.target.value.slice(0, 500) }), textCount: (d.text || '').length + ' / 500',
+      needsFile: this.hasMedia(c), accept: c.type === 'image' ? 'image/*' : 'video/*',
       fileLabel: d.file ? 'Chosen: ' + d.name + ' (tap to change)' : (c.type === 'image' ? 'Choose a photo or artwork' : 'Choose a video'),
       onFile: (e) => this.ansFile(c.id, e), file: d.file || '', fileImg: c.type === 'image' && !!d.file, fileVid: c.type === 'video' && !!d.file,
-      notReady: c.type === 'mc' ? d.choice == null : !d.file, submit: () => this.submit(c.id),
-      myText: mine ? (c.type === 'mc' ? 'Your answer: ' + mine.answer + '. You earned ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + '.' : 'Sent ' + this.ago(mine.at) + '. You earned ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + '.') : '',
+      notReady: !this.ansReady(c, d), submit: () => this.submit(c.id),
+      myAnsImg: mine && c.type === 'mc' ? this.optImg(c, (c.options || []).indexOf(mine.answer)) : '',
+      myText: mine ? (c.type === 'mc' || c.type === 'text' ? 'Your answer: ' + (c.type === 'text' ? '“' + mine.answer + '”' : mine.answer) + '. You earned ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + '.' : 'Sent ' + this.ago(mine.at) + '. You earned ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + '.') : '',
       myFile: mine && mine.file ? mine.file : '', myImg: !!(mine && mine.file && c.type === 'image'), myVid: !!(mine && mine.file && c.type === 'video'),
       cancel: () => mine && this.confirm('Cancel your submission?', 'Your entry for "' + c.title + '" will be removed and the ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + ' you earned will be taken back.', 'cancelSub', mine.id, 'Cancel submission'),
       showGallery: !!c.ev && !ctx.isOwner && subs.length > 0,
@@ -652,8 +677,9 @@ class Component extends DCLogic {
     const u = this.user(x.uid);
     return {
       name: u.name, av: this.av(u), go: () => this.openProfile(u.id), isMe: !!me && x.uid === me.id, when: this.ago(x.at),
-      isMC: c.type === 'mc', answer: x.answer, file: x.file || '',
-      hasImg: c.type === 'image' && !!x.file, hasVid: c.type === 'video' && !!x.file, noMedia: c.type !== 'mc' && !x.file,
+      isMC: c.type === 'mc', isText: c.type === 'text', answer: x.answer, file: x.file || '',
+      ansImg: c.type === 'mc' ? this.optImg(c, (c.options || []).indexOf(x.answer)) : '', hasAnsImg: c.type === 'mc' && !!this.optImg(c, (c.options || []).indexOf(x.answer)),
+      hasImg: c.type === 'image' && !!x.file, hasVid: c.type === 'video' && !!x.file, noMedia: this.hasMedia(c) && !x.file,
       mediaLabel: c.type === 'image' ? 'Photo submission' : 'Video submission', isWinner: c.winner === x.uid
     };
   }
@@ -664,7 +690,7 @@ class Component extends DCLogic {
     const isMine = !!me && x.uid === me.id, canVote = !!me && me.role === 'fan' && !isMine;
     const score = up - down;
     return {
-      votable: c.type !== 'mc', score: score, upCount: up, downCount: down,
+      votable: this.hasMedia(c), score: score, upCount: up, downCount: down,
       myUp: !!(mine && mine.v > 0), myDown: !!(mine && mine.v < 0),
       upCls: mine && mine.v > 0 ? 'vbtn up on' : 'vbtn up', downCls: mine && mine.v < 0 ? 'vbtn down on' : 'vbtn down',
       scoreCls: score > 0 ? 'vscore pos' : (score < 0 ? 'vscore neg' : 'vscore'),
@@ -842,7 +868,7 @@ class Component extends DCLogic {
       });
       if (T === 'lottery') db.lotteries.filter(l => l.aid === A.id).sort((x, y) => y.at - x.at).forEach(l => blocks.push(this.ltItem(l, ctx)));
       const P = {
-        challenges: { heading: isOwner ? 'Your Challenges' : 'Challenges', createLabel: 'Create Challenge', create: () => this.openChModal(null, null), emptyTitle: 'No challenges yet', emptyText: isOwner ? 'Create your first challenge. Fans can answer a multiple-choice question, send an image or artwork, or record a video, and earn the coins you set.' : A.name + ' hasn’t posted any challenges yet. Check back soon.' },
+        challenges: { heading: isOwner ? 'Your Challenges' : 'Challenges', createLabel: 'Create Challenge', create: () => this.openChModal(null, null), emptyTitle: 'No challenges yet', emptyText: isOwner ? 'Create your first challenge. Fans can pick from multiple-choice answers (text or images), type their own answer, send an image or artwork, or record a video, and earn the coins you set.' : A.name + ' hasn’t posted any challenges yet. Check back soon.' },
         showday: { heading: isOwner ? 'Your Showday Events' : 'Showday Events', createLabel: 'Create Event', create: () => this.openEvModal(null), emptyTitle: 'No Showday events yet', emptyText: isOwner ? 'Create an event for show day, like a premiere or a concert, then add challenges fans can do on the day.' : 'No Showday events yet. When ' + A.name + ' announces one, its challenges show up here.' },
         lottery: { heading: isOwner ? 'Your Lotteries' : 'Lottery', createLabel: 'Create Lottery', create: () => this.openLtModal(null), emptyTitle: 'No lotteries yet', emptyText: isOwner ? 'Offer an experience, like dinner with the cast, and set how many tickets each entry costs and how many winners there are.' : 'No lotteries open right now.' }
       }[T] || {};
@@ -864,13 +890,13 @@ class Component extends DCLogic {
           const c = sel, subs = db.subs.filter(x => x.cid === c.id).sort((x, y) => y.at - x.at), w = c.winner ? this.user(c.winner) : null;
           const ev = c.ev ? db.events.find(e => e.id === c.ev) : null;
           Object.assign(sb, {
-            title: c.title, meta: (ev ? ev.title + ' · ' : '') + { mc: 'Multiple choice', image: 'Image', video: 'Video' }[c.type] + ' · +' + c.rw + ' ' + c.rt + ' per entry · ' + this.plural(subs.length, 'submission', 'submissions'),
+            title: c.title, meta: (ev ? ev.title + ' · ' : '') + this.typeName(c.type) + ' · +' + c.rw + ' ' + c.rt + ' per entry · ' + this.plural(subs.length, 'submission', 'submissions'),
             status: w ? (c.claimed ? 'Winner: ' + w.name + ' (prize claimed, can no longer be changed)' : 'Winner: ' + w.name + ' (not claimed yet, you can still change it)') : (isOwner ? 'No winner yet. Pick one from the submissions below. They get 1 green coin.' : 'No winner picked yet.'),
             statusCls: w ? 'note ok' : 'note', noRows: subs.length === 0, noRowsText: 'No submissions yet.',
             rows: subs.map(x => { const v = Object.assign(this.subView(x, c, me), this.voteView(x, c, me)); const isW = c.winner === x.uid; return Object.assign(v, { isEntry: false, cls: isW ? 'sub win' : 'sub', winLabel: c.claimed ? 'Winner · claimed' : 'Winner', canPick: isOwner && !c.claimed && !isW, pickLabel: c.winner ? 'Make winner instead' : 'Select as the winner', pick: () => this.pickWinner(c.id, x.uid), canUnpick: isOwner && isW && !c.claimed, unpick: () => this.unpickWinner(c.id) }); })
           });
           // Image and video entries: most popular first, so the artist sees what fans like
-          if (c.type !== 'mc') sb.rows.sort((p, q) => q.score - p.score);
+          if (this.hasMedia(c)) sb.rows.sort((p, q) => q.score - p.score);
         }
         if (sel && cat === 'lottery') {
           const l = sel, ents = db.entries.filter(e => e.lid === l.id).sort((x, y) => y.n - x.n), total = ents.reduce((p, q) => p + q.n, 0);
@@ -880,7 +906,7 @@ class Component extends DCLogic {
             status: l.drawn ? (l.picked.length ? 'Drawn ' + this.ago(l.drawnAt || Date.now()) + '. Winner' + (l.picked.length > 1 ? 's' : '') + ': ' + names + '. Management contacts winners by email.' : 'Drawn, but there were no entries.') : (isOwner ? 'Not drawn yet. When you draw, winners are picked at random. Each entry is one chance.' : 'Not drawn yet.'),
             statusCls: l.drawn ? 'note ok' : 'note', canDraw: isOwner && ents.length > 0 && l.claims.length === 0, drawLabel: l.drawn ? 'Redraw lottery' : 'Draw lottery', draw: () => this.draw(l.id),
             noRows: ents.length === 0, noRowsText: 'No entries yet.',
-            rows: ents.map(e => { const u = this.user(e.uid), isW = l.picked.includes(e.uid); return { name: u.name, av: this.av(u), go: () => this.openProfile(u.id), when: this.ago(e.at), isMC: false, isEntry: true, entryText: this.plural(e.n, 'entry', 'entries') + ' · ' + this.plural(e.n * l.cost, 'ticket', 'tickets') + ' · ' + (total ? Math.round(e.n / total * 100) : 0) + '% chance', hasImg: false, hasVid: false, noMedia: false, file: '', isWinner: isW, cls: isW ? 'sub win' : 'sub', winLabel: l.claims.includes(e.uid) ? 'Winner · claimed' : 'Winner', canPick: false, canUnpick: false }; })
+            rows: ents.map(e => { const u = this.user(e.uid), isW = l.picked.includes(e.uid); return { name: u.name, av: this.av(u), go: () => this.openProfile(u.id), when: this.ago(e.at), isMC: false, isText: false, hasAnsImg: false, isEntry: true, entryText: this.plural(e.n, 'entry', 'entries') + ' · ' + this.plural(e.n * l.cost, 'ticket', 'tickets') + ' · ' + (total ? Math.round(e.n / total * 100) : 0) + '% chance', hasImg: false, hasVid: false, noMedia: false, file: '', isWinner: isW, cls: isW ? 'sub win' : 'sub', winLabel: l.claims.includes(e.uid) ? 'Winner · claimed' : 'Winner', canPick: false, canUnpick: false }; })
           });
         }
       }
@@ -964,9 +990,9 @@ class Component extends DCLogic {
         okCls: (k === 'confirm' || k === 'delete') ? 'btn danger' : 'btn grad', okDisabled: k === 'delete' && M.stage === 2 && (M.typed || '').trim() !== 'DELETE'
       });
       if (k === 'ch') Object.assign(md, {
-        title: M.id ? 'Edit challenge' : (M.ev ? 'Add Showday challenge' : 'Create challenge'), okLabel: M.id ? 'Save changes' : 'Create challenge', ok: () => this.saveCh(), isMCType: M.type === 'mc',
-        types: [['mc', 'Multiple choice'], ['image', 'Image'], ['video', 'Video']].map(t => ({ label: t[1], on: M.type === t[0], cls: M.type === t[0] ? 'on' : '', pick: () => this.setM('type', t[0]) })),
-        opts: [0, 1, 2, 3].map(i => ({ ph: 'Option ' + 'ABCD'[i], val: M['o' + i] || '', set: val(v => this.setM('o' + i, v)) })),
+        title: M.id ? 'Edit challenge' : (M.ev ? 'Add Showday challenge' : 'Create challenge'), okLabel: M.id ? 'Save changes' : 'Create challenge', ok: () => this.saveCh(), isMCType: M.type === 'mc', isTextType: M.type === 'text',
+        types: [['mc', 'Multiple choice'], ['text', 'Text'], ['image', 'Image'], ['video', 'Video']].map(t => ({ label: t[1], on: M.type === t[0], cls: M.type === t[0] ? 'on' : '', pick: () => this.setM('type', t[0]) })),
+        opts: [0, 1, 2, 3].map(i => ({ ph: 'Option ' + 'ABCD'[i], letter: 'ABCD'[i], val: M['o' + i] || '', set: val(v => this.setM('o' + i, v)), img: M['i' + i] || '', hasImg: !!M['i' + i], noImg: !M['i' + i], onImg: (e) => this.mFile('i' + i, e), clearImg: () => this.setM('i' + i, '') })),
         rts: [['silver', 'Silver'], ['gold', 'Gold']].map(t => ({ label: t[1], img: this.coin(t[0]), on: M.rt === t[0], cls: M.rt === t[0] ? 'on' : '', pick: () => this.setM('rt', t[0]) }))
       });
       if (k === 'ev') Object.assign(md, { title: M.id ? 'Edit event' : 'Create Showday event', okLabel: M.id ? 'Save changes' : 'Create event', ok: () => this.saveEv() });

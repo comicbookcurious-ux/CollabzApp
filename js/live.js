@@ -115,7 +115,7 @@
       };
     });
     db.events = d.showday_events.map((e) => ({ id: e.id, aid: e.artist_id, tag: e.tag, title: e.title, desc: e.description || '', date: e.event_date || '', time: e.event_time ? String(e.event_time).slice(0, 5) : '', venue: e.venue || '', at: T(e.created_at) }));
-    db.challenges = d.challenges.map((c) => ({ id: c.id, aid: c.artist_id, ev: c.event_id, title: c.title, desc: c.description || '', type: c.type, options: c.options || [], rt: c.reward_coin, rw: c.reward_amount, max: c.max_submissions, winner: c.winner_id, claimed: c.winner_claimed, at: T(c.created_at) }));
+    db.challenges = d.challenges.map((c) => ({ id: c.id, aid: c.artist_id, ev: c.event_id, title: c.title, desc: c.description || '', type: c.type, options: c.options || [], imgs: c.option_images || [], rt: c.reward_coin, rw: c.reward_amount, max: c.max_submissions, winner: c.winner_id, claimed: c.winner_claimed, at: T(c.created_at) }));
     db.subs = d.submissions.map((s) => ({ id: s.id, cid: s.challenge_id, uid: s.fan_id, answer: s.answer || '', file: s.media_url || null, at: T(s.created_at) }));
     db.hidden = d.hidden_challenge_cards.map((h) => ({ uid: h.user_id, cid: h.challenge_id }));
     db.votes = d.submission_votes.map((v) => ({ sid: v.submission_id, uid: v.user_id, v: v.value }));
@@ -295,13 +295,14 @@
   wrap('submit', function (cid) {
     const s = this.state, d = s.ans[cid] || {}, c = s.db.challenges.find((x) => x.id === cid);
     if (!c) return;
-    if (c.type === 'mc' ? d.choice == null : !this.files['ans:' + cid]) return;
-    if (c.type !== 'mc') toast.call(this, 'Uploading your ' + c.type + '…', true);
+    const media = this.hasMedia(c);
+    if (media ? !this.files['ans:' + cid] : !this.ansReady(c, d)) return;
+    if (media) toast.call(this, 'Uploading your ' + c.type + '…', true);
     const ans = Object.assign({}, s.ans); delete ans[cid];
     run.call(this, async () => {
       let url = null;
-      if (c.type !== 'mc') url = await upload.call(this, 'submissions', this.files['ans:' + cid]);
-      await rpc.call(this, 'submit_challenge', { p_challenge_id: cid, p_answer: c.type === 'mc' ? c.options[d.choice] : null, p_media_url: url });
+      if (media) url = await upload.call(this, 'submissions', this.files['ans:' + cid]);
+      await rpc.call(this, 'submit_challenge', { p_challenge_id: cid, p_answer: media ? null : this.ansValue(c, d), p_media_url: url });
       delete this.files['ans:' + cid];
     }, { ans: ans, toast: null, pop: this.mkPop(c.rt, '+' + c.rw, 'Reward earned!', this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + ' for taking part in "' + c.title + '"') });
   });
@@ -340,17 +341,30 @@
   // ---------------------------------------------------------------- create / edit / delete
   wrap('saveCh', function () {
     const m = this.state.modal;
-    const opts = [m.o0, m.o1, m.o2, m.o3].map((x) => (x || '').trim()).filter(Boolean);
+    // Option slots the artist filled; remember which slot each came from so its image file can be found
+    const slots = [0, 1, 2, 3].filter((i) => (m['o' + i] || '').trim() || m['i' + i]);
+    const mo = this.mcOptions(m), opts = mo.labels;
     const rw = parseInt(m.rw, 10), max = parseInt(m.max, 10);
     if (!m.title.trim()) return this.setM('err', 'Give the challenge a title.');
-    if (m.type === 'mc' && opts.length < 2) return this.setM('err', 'Add at least two answer options.');
+    if (m.type === 'mc' && opts.length < 2) return this.setM('err', 'Add at least two answer options (text, an image, or both).');
+    if (m.type === 'mc' && new Set(opts.map((x) => x.toLowerCase())).size !== opts.length) return this.setM('err', 'Each answer option needs a different label.');
     if (!(rw >= 1)) return this.setM('err', 'The reward needs to be at least 1 coin.');
     if (!(max >= 1)) return this.setM('err', 'Allow at least 1 submission.');
     const row = { title: m.title.trim(), description: m.desc.trim(), type: m.type, options: m.type === 'mc' ? opts : [], reward_coin: m.rt, reward_amount: rw, max_submissions: max };
+    const withImgs = m.type === 'mc' && mo.imgs.some(Boolean);
+    if (withImgs) toast.call(this, 'Uploading option images…', true);
     run.call(this, async () => {
+      if (withImgs) {
+        const urls = [];
+        for (let k = 0; k < slots.length; k++) {
+          const i = slots[k], v = m['i' + i] || '', f = this.files['m:i' + i];
+          urls.push(v.startsWith('blob:') && f ? await upload.call(this, 'submissions', f) : v);
+        }
+        row.option_images = urls;
+      } else if (m.id && ((this.state.db.challenges.find((x) => x.id === m.id) || {}).imgs || []).length) row.option_images = [];
       if (m.id) must(await this.sb.from('challenges').update(row).eq('id', m.id));
       else must(await this.sb.from('challenges').insert(Object.assign({ artist_id: this.state.me, event_id: m.ev || null }, row)));
-    }, { modal: null });
+    }, { modal: null, toast: null });
   });
 
   wrap('saveEv', function () {

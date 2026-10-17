@@ -7,7 +7,7 @@ A static web app (HTML, CSS and JavaScript) backed by **Supabase** for accounts,
 ## Supabase
 
 - Connection settings live in `js/config.js` (project URL and the public anon key; never put the service_role key there).
-- The database is created by `supabase/schema.sql` (run once in Supabase → SQL Editor), then `supabase/002_submission_votes.sql` for upvotes/downvotes on image and video submissions.
+- The database is created by `supabase/schema.sql` (run once in Supabase → SQL Editor), then `supabase/002_submission_votes.sql` for upvotes/downvotes on image and video submissions, `supabase/003_terms_agreement.sql` for the sign-up agreement, and `supabase/004_challenge_text_and_image_options.sql` for text-answer challenges and image answer options.
 - `js/live.js` connects the screens to Supabase: sign up / log in / password reset, onboarding, challenges, Showday, lotteries, scoreboard, follows, community, chat and notifications. Uploads go to the `avatars`, `welcome-videos` and `submissions` storage buckets.
 - In Supabase → Authentication → URL Configuration, set **Site URL** to your live address (e.g. your Cloudflare URL) and add it under **Redirect URLs**, so confirmation and password-reset emails link back to the app.
 
@@ -38,7 +38,7 @@ The live app starts at the real login. To preview any screen with built-in demo 
 - Artist onboarding: up to 3 genres, primary image, display name, bio, social links, welcome video
 - Fan onboarding: profile, choose a genre, browse that genre's artists
 - Artist main page with Challenges, Showday, Lottery, Community, Games (coming soon) and Scoreboard tabs
-- Challenges: multiple choice, image or video, with silver or gold coin rewards and a submission limit
+- Challenges: multiple choice (text and/or an image per option), text answer (fans type up to 500 characters), image or video, with silver or gold coin rewards and a submission limit
 - Showday events with their own challenges; fans see each other's submissions
 - Lotteries paid with tickets; more entries mean better odds; random weighted draw
 - Scoreboard: pick winners (changeable until claimed) or draw a lottery; winners claim 1 green coin
