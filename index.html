@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20261020b">
+<link rel="stylesheet" href="css/styles.css?v=20261020c">
 </head>
 <body>
 <div id="root"></div>
@@ -228,6 +228,12 @@
 <sc-for list="{{gp.results}}" as="r" hint-placeholder-count="2">
 <button type="button" class="person" onClick="{{r.go}}"><span class="av a40" style="background: {{r.av.bg}}"><sc-if value="{{r.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.img}}" alt=""></sc-if><sc-if value="{{r.av.noImg}}" hint-placeholder-val="{{ true }}">{{r.av.ini}}</sc-if></span><span class="nm"><strong>{{r.name}}</strong><span class="muted sm">{{r.sub}}</span></span></button>
 </sc-for>
+</div>
+</sc-if>
+<sc-if value="{{gp.hasMine}}" hint-placeholder-val="{{ true }}">
+<p class="goldlabel" style="margin-top: 8px">My Artists</p>
+<div class="myart" role="list" aria-label="My Artists">
+<sc-for list="{{gp.mine}}" as="r" hint-placeholder-count="4"><button type="button" class="matile" role="listitem" onClick="{{r.go}}"><span class="av a64" style="background: {{r.av.bg}}"><sc-if value="{{r.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.img}}" alt=""></sc-if><sc-if value="{{r.av.noImg}}" hint-placeholder-val="{{ true }}">{{r.av.ini}}</sc-if></span><strong>{{r.name}}</strong><span class="muted sm">{{r.note}}</span></button></sc-for>
 </div>
 </sc-if>
 <p class="goldlabel" style="margin-top: 8px">Or choose a genre</p>
@@ -1083,12 +1089,12 @@
 </template>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
-<script src="js/runtime.js?v=20261020b"></script>
+<script src="js/runtime.js?v=20261020c"></script>
 <script src="vendor/supabase.js"></script>
-<script src="js/config.js?v=20261020b"></script>
-<script src="js/games.js?v=20261020b"></script>
-<script src="js/app.js?v=20261020b"></script>
-<script src="js/live.js?v=20261020b"></script>
+<script src="js/config.js?v=20261020c"></script>
+<script src="js/games.js?v=20261020c"></script>
+<script src="js/app.js?v=20261020c"></script>
+<script src="js/live.js?v=20261020c"></script>
 <script>
   // Live app by default (Supabase). Add ?screen=<name> to preview a screen with demo data,
   // e.g. index.html?screen=fan-showday (see README for the list).

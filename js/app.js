@@ -275,6 +275,17 @@ class Component extends DCLogic {
     const followed = (u.following || []).filter(id => db.users[id] && db.users[id].role === 'artist');
     return followed.length ? followed[followed.length - 1] : null;
   }
+  myArtists(u) {
+    const db = this.state.db, m = {};
+    const touch = (aid, at, took) => { if (!db.users[aid] || db.users[aid].role !== 'artist') return; const r = m[aid] || (m[aid] = { id: aid, at: 0, took: false, follows: false }); r.at = Math.max(r.at, at || 0); if (took) r.took = true; };
+    db.subs.filter(x => x.uid === u.id).forEach(x => { const c = db.challenges.find(y => y.id === x.cid); if (c) touch(c.aid, x.at, true); });
+    db.entries.filter(x => x.uid === u.id).forEach(x => { const l = db.lotteries.find(y => y.id === x.lid); if (l) touch(l.aid, x.at, true); });
+    (db.gplays || []).filter(x => x.uid === u.id).forEach(x => { const g = (db.games || []).find(y => y.id === x.gid); if (g) touch(g.aid, x.at, true); });
+    try { const v = JSON.parse(localStorage.getItem('collabz:lastArtist:' + u.id) || 'null'); if (v && v.id) touch(v.id, v.at, false); } catch (e) {}
+    (u.following || []).forEach(id => { touch(id, 0, false); if (m[id]) m[id].follows = true; });
+    Object.values(m).forEach(r => { if (!r.took && !r.follows) delete m[r.id]; });
+    return Object.values(m).sort((a, b) => b.at - a.at || db.users[a.id].name.localeCompare(db.users[b.id].name));
+  }
   openArtist(id, tab, open, sb) { this.rememberArtist(id); this.go('artist', { viewing: id, tab: tab || 'challenges', open: open || null, sb: sb || { cat: 'challenge', sel: '' } }); }
   openProfile(id) { if (!this.state.db.users[id]) return; this.go('profile', { profileId: id }); }
   home() {
@@ -1230,6 +1241,10 @@ class Component extends DCLogic {
       back: () => { if (me && me.role === 'artist') this.openArtist(me.id); else if (s.viewing && db.users[s.viewing]) this.openArtist(s.viewing); else this.go('pickArtist', { genre: (me && me.genre) || 'music' }); }
     };
     gp.noResults = gp.hasQ && gp.results.length === 0;
+    // My Artists: artists this fan follows or has taken part with, most recent activity first
+    const mine = me && me.role === 'fan' ? this.myArtists(me) : [];
+    gp.mine = mine.map(x => { const u = db.users[x.id]; return { name: u.name, av: this.av(u), note: [x.follows ? 'Following' : '', x.took ? 'Took part' : ''].filter(Boolean).join(' · '), go: () => this.openArtist(u.id) }; });
+    gp.hasMine = !gp.hasQ && gp.mine.length > 0;
     const ex = {
       back: () => this.go('pickGenre', { gsel: s.genre }),
       title: this.genreName(s.genre) + ' artists', genre: this.genreName(s.genre), has: inGenre.length > 0, none: inGenre.length === 0,
