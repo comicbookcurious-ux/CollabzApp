@@ -7,7 +7,7 @@ A static web app (HTML, CSS and JavaScript) backed by **Supabase** for accounts,
 ## Supabase
 
 - Connection settings live in `js/config.js` (project URL and the public anon key; never put the service_role key there).
-- The database is created by `supabase/schema.sql` (run once in Supabase → SQL Editor), then `supabase/002_submission_votes.sql` for upvotes/downvotes on image and video submissions, `supabase/003_terms_agreement.sql` for the sign-up agreement, `supabase/004_challenge_text_and_image_options.sql` for text-answer challenges and image answer options, `supabase/005_games.sql` for Games, and `supabase/006_challenge_thumbnail.sql` for challenge thumbnails.
+- The database is created by `supabase/schema.sql` (run once in Supabase → SQL Editor), then `supabase/002_submission_votes.sql` for upvotes/downvotes on image and video submissions, `supabase/003_terms_agreement.sql` for the sign-up agreement, `supabase/004_challenge_text_and_image_options.sql` for text-answer challenges and image answer options, `supabase/005_games.sql` for Games, `supabase/006_challenge_thumbnail.sql` for challenge thumbnails, and `supabase/007_black_theme.sql` for the Black theme.
 - `js/live.js` connects the screens to Supabase: sign up / log in / password reset, onboarding, challenges, Showday, lotteries, scoreboard, follows, community, chat and notifications. Uploads go to the `avatars`, `welcome-videos` and `submissions` storage buckets.
 - In Supabase → Authentication → URL Configuration, set **Site URL** to your live address (e.g. your Cloudflare URL) and add it under **Redirect URLs**, so confirmation and password-reset emails link back to the app.
 
@@ -46,7 +46,7 @@ The live app starts at the real login. To preview any screen with built-in demo 
 - Coin pop animation on rewards and wins
 - Community forum with replies, people search, chat, notifications, follow/unfollow, followers and following lists
 - Profiles with recent activity, edit profile and delete account (with typed confirmation)
-- 7 artist page themes (4 dark, 3 light), with text colours that adjust automatically
+- 8 artist page themes (5 dark including Black, 3 light), with text colours that adjust automatically
 
 ## Project structure
 

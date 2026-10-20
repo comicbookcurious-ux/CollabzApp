@@ -60,7 +60,7 @@ create table if not exists public.profiles (
   welcome_video_url text,
   browse_genre      text references public.genres (id),          -- fan's current genre
   theme             text not null default 'default'
-                    check (theme in ('default','midnight','ember','forest','lavender','peach','sky')),
+                    check (theme in ('default','black','midnight','ember','forest','lavender','peach','sky')),
   facebook_url      text,
   instagram_url     text,
   x_url             text,
