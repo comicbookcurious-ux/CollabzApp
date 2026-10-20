@@ -170,8 +170,8 @@ class Component extends DCLogic {
       users: users,
       challenges: [
         ch({ id: 'c1', aid: 'a2', title: 'Act out your favourite line from my last film', desc: 'Film yourself delivering the line. Costumes encouraged.', type: 'video', rt: 'gold', rw: 2, at: t - 4 * D }),
-        ch({ id: 'c2', aid: 'a2', title: 'Where did we film the final scene?', desc: 'Pick one. Hint: it was very cold.', type: 'mc', options: ['Perth', 'Auckland', 'Vancouver', 'Reykjavik'], rt: 'silver', rw: 3, winner: 'f2', claimed: true, at: t - 3 * D }),
-        ch({ id: 'c3', aid: 'a2', title: 'Design an alternate movie poster', desc: 'Any medium. Upload a photo or export of your poster.', type: 'image', rt: 'gold', rw: 1, max: 50, at: t - 2 * D }),
+        ch({ id: 'c2', aid: 'a2', title: 'Where did we film the final scene?', desc: 'Pick one. Hint: it was very cold.', thumb: this.demoImg('#0c4a6e', '#67e8f9'), type: 'mc', options: ['Perth', 'Auckland', 'Vancouver', 'Reykjavik'], rt: 'silver', rw: 3, winner: 'f2', claimed: true, at: t - 3 * D }),
+        ch({ id: 'c3', aid: 'a2', title: 'Design an alternate movie poster', desc: 'Any medium. Upload a photo or export of your poster.', type: 'image', thumb: this.demoScene(), rt: 'gold', rw: 1, max: 50, at: t - 2 * D }),
         ch({ id: 'c4', aid: 'a2', ev: 'e1', title: 'Take a selfie inside the theatre.', desc: 'Take a selfie wherever in the theatre.', type: 'image', rt: 'gold', rw: 1, at: t - D }),
         ch({ id: 'c5', aid: 'a2', ev: 'e1', title: 'Make a video with your friends at the premier night.', desc: 'Be funny.', type: 'video', rt: 'gold', rw: 1, at: t - D }),
         ch({ id: 'c6', aid: 'a1', title: 'Sing the chorus of my new single', desc: 'Any key, any style. Keep it under 60 seconds.', type: 'video', rt: 'silver', rw: 5, at: t - 5 * D }),
@@ -382,7 +382,9 @@ class Component extends DCLogic {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c1 + '"/><stop offset="1" stop-color="' + c2 + '"/></linearGradient></defs><rect width="300" height="300" fill="url(#g)"/><circle cx="150" cy="105" r="38" fill="rgba(255,255,255,.35)"/><path d="M95 255 112 160h76l17 95z" fill="rgba(255,255,255,.35)"/></svg>';
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
-  typeName(t, long) { return (long ? { mc: 'Multiple choice', text: 'Text answer', image: 'Image challenge', video: 'Video challenge' } : { mc: 'Multiple choice', text: 'Text answer', image: 'Image', video: 'Video' })[t] || t; }
+  // Two kinds of challenge: CHOOSE (pick from multiple-choice options) and CREATE (fans make something: text, image or video)
+  chGroup(t) { return t === 'mc' ? 'CHOOSE' : 'CREATE'; }
+  typeName(t, long) { return this.chGroup(t) + ' · ' + ((long ? { mc: 'Multiple choice', text: 'Text answer', image: 'Image', video: 'Video' } : { mc: 'Multiple choice', text: 'Text', image: 'Image', video: 'Video' })[t] || t); }
   hasMedia(c) { return c.type === 'image' || c.type === 'video'; }
   optImg(c, i) { return (c.imgs && c.imgs[i]) || ''; }
   ansReady(c, d) { return c.type === 'mc' ? d.choice != null : (c.type === 'text' ? !!(d.text || '').trim() : !!d.file); }
@@ -473,7 +475,7 @@ class Component extends DCLogic {
   mFile(k, e) { const f = e.target.files && e.target.files[0]; if (!f) return; const p = { [k]: URL.createObjectURL(f), err: '' }; if (k === 'video') p.videoName = f.name; this.setState({ modal: Object.assign({}, this.state.modal, p) }); }
   openChModal(c, ev) {
     const o = (c && c.options) || [], im = (c && c.imgs) || [];
-    this.setState({ modal: { kind: 'ch', id: c ? c.id : null, ev: c ? c.ev : (ev || null), title: c ? c.title : '', desc: c ? c.desc : '', type: c ? c.type : 'image', o0: o[0] || '', o1: o[1] || '', o2: o[2] || '', o3: o[3] || '', i0: im[0] || '', i1: im[1] || '', i2: im[2] || '', i3: im[3] || '', rt: c ? c.rt : 'gold', rw: String(c ? c.rw : 1), max: String(c ? c.max : 100), err: '' } });
+    this.setState({ modal: { kind: 'ch', id: c ? c.id : null, ev: c ? c.ev : (ev || null), title: c ? c.title : '', desc: c ? c.desc : '', type: c ? c.type : 'image', o0: o[0] || '', o1: o[1] || '', o2: o[2] || '', o3: o[3] || '', i0: im[0] || '', i1: im[1] || '', i2: im[2] || '', i3: im[3] || '', thumb: c ? (c.thumb || '') : '', lastCreate: c && c.type !== 'mc' ? c.type : 'image', rt: c ? c.rt : 'gold', rw: String(c ? c.rw : 1), max: String(c ? c.max : 100), err: '' } });
   }
   saveCh() {
     const m = this.state.modal, me = this.state.me;
@@ -485,7 +487,7 @@ class Component extends DCLogic {
     if (!(rw >= 1)) return this.setM('err', 'The reward needs to be at least 1 coin.');
     if (!(max >= 1)) return this.setM('err', 'Allow at least 1 submission.');
     this.mut(db => {
-      const data = { title: m.title.trim(), desc: m.desc.trim(), type: m.type, options: m.type === 'mc' ? opts : [], imgs: m.type === 'mc' && mo.imgs.some(Boolean) ? mo.imgs : [], rt: m.rt, rw: rw, max: max };
+      const data = { title: m.title.trim(), desc: m.desc.trim(), type: m.type, options: m.type === 'mc' ? opts : [], imgs: m.type === 'mc' && mo.imgs.some(Boolean) ? mo.imgs : [], thumb: m.thumb || '', rt: m.rt, rw: rw, max: max };
       if (m.id) Object.assign(db.challenges.find(x => x.id === m.id), data);
       else {
         const c = Object.assign({ id: this.uid('c'), aid: me, ev: m.ev, winner: null, claimed: false, at: Date.now() }, data);
@@ -682,6 +684,7 @@ class Component extends DCLogic {
       outer: c.ev ? 'evmid' : 'gap', boxCls: open ? 'blk open' : 'blk',
       title: c.title, desc: c.desc || 'No extra details.', typeLabel: typeLabel,
       isMC: c.type === 'mc', isText: c.type === 'text', isImage: c.type === 'image', isVideo: c.type === 'video',
+      group: this.chGroup(c.type), groupCls: c.type === 'mc' ? 'rkind choose' : 'rkind create', thumb: c.thumb || '', hasThumb: !!c.thumb,
       imgOpts: imgOpts, txtOpts: c.type === 'mc' && !imgOpts,
       coinImg: this.coin(c.rt), rw: c.rw, rtName: c.rt, rewardText: '+' + c.rw + ' ' + c.rt, count: subs.length,
       countText: subs.length + ' of ' + c.max + ' submissions', artistName: art.name,
@@ -1435,7 +1438,10 @@ class Component extends DCLogic {
       });
       if (k === 'ch') Object.assign(md, {
         title: M.id ? 'Edit challenge' : (M.ev ? 'Add Showday challenge' : 'Create challenge'), okLabel: M.id ? 'Save changes' : 'Create challenge', ok: () => this.saveCh(), isMCType: M.type === 'mc', isTextType: M.type === 'text',
-        types: [['mc', 'Multiple choice'], ['text', 'Text'], ['image', 'Image'], ['video', 'Video']].map(t => ({ label: t[1], on: M.type === t[0], cls: M.type === t[0] ? 'on' : '', pick: () => this.setM('type', t[0]) })),
+        isCreate: M.type !== 'mc',
+        groups: [['choose', 'CHOOSE', 'Fans pick an answer'], ['create', 'CREATE', 'Fans make something']].map(g => { const on = (g[0] === 'choose') === (M.type === 'mc'); return { label: g[1], sub: g[2], on: on, cls: on ? 'on' : '', pick: () => { if (on) return; if (g[0] === 'choose') this.setState({ modal: Object.assign({}, this.state.modal, { type: 'mc', lastCreate: M.type, err: '' }) }); else this.setM('type', M.lastCreate || 'image'); } }; }),
+        types: [['text', 'Text'], ['image', 'Image'], ['video', 'Video']].map(t => ({ label: t[1], on: M.type === t[0], cls: M.type === t[0] ? 'on' : '', pick: () => this.setM('type', t[0]) })),
+        hasThumb: !!M.thumb, noThumb: !M.thumb, thumbLabel: M.thumb ? 'Change thumbnail' : 'Upload thumbnail', onThumb: (e) => this.mFile('thumb', e), clearThumb: () => this.setM('thumb', ''),
         opts: [0, 1, 2, 3].map(i => ({ ph: 'Option ' + 'ABCD'[i], letter: 'ABCD'[i], val: M['o' + i] || '', set: val(v => this.setM('o' + i, v)), img: M['i' + i] || '', hasImg: !!M['i' + i], noImg: !M['i' + i], onImg: (e) => this.mFile('i' + i, e), clearImg: () => this.setM('i' + i, '') })),
         rts: [['silver', 'Silver'], ['gold', 'Gold']].map(t => ({ label: t[1], img: this.coin(t[0]), on: M.rt === t[0], cls: M.rt === t[0] ? 'on' : '', pick: () => this.setM('rt', t[0]) }))
       });

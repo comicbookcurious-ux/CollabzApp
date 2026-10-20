@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20261017c">
+<link rel="stylesheet" href="css/styles.css?v=20261020a">
 </head>
 <body>
 <div id="root"></div>
@@ -377,7 +377,7 @@
 <sc-if value="{{b.isImage}}" hint-placeholder-val="{{ true }}"><svg class="i s" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg></sc-if>
 <sc-if value="{{b.isVideo}}" hint-placeholder-val="{{ false }}"><svg class="i s" viewBox="0 0 24 24"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11"></path><rect x="2" y="6" width="14" height="12" rx="2"></rect></svg></sc-if>
 </span>
-<span class="rtitle">{{b.title}}</span>
+<span class="rtitle"><span class="{{b.groupCls}}">{{b.group}}</span>{{b.title}}</span>
 <sc-if value="{{b.hasStatus}}" hint-placeholder-val="{{ false }}"><span class="{{b.stCls}}">{{b.status}}</span></sc-if>
 <span class="rw" title="{{b.rewardText}}"><img src="{{b.coinImg}}" alt="{{b.rtName}} coin">{{b.rw}}</span>
 <svg class="{{b.chevCls}}" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
@@ -385,6 +385,7 @@
 
 <sc-if value="{{b.open}}" hint-placeholder-val="{{ false }}">
 <div class="rbody">
+<sc-if value="{{b.hasThumb}}" hint-placeholder-val="{{ false }}"><img class="chthumb" src="{{b.thumb}}" alt="{{b.title}}"></sc-if>
 <p>{{b.desc}}</p>
 <div class="meta"><span>{{b.typeLabel}}</span><span>Reward: {{b.rewardText}} per entry</span><span>{{b.countText}}</span></div>
 
@@ -753,7 +754,13 @@
 <div class="stack">
 <div class="fld"><label for="mct">Challenge title</label><input id="mct" class="in" placeholder="e.g. Take a selfie inside the theatre" value="{{md.d.title}}" onChange="{{mf.title}}"></div>
 <div class="fld"><label for="mcd">Description</label><textarea id="mcd" class="in" placeholder="What should fans do?" value="{{md.d.desc}}" onChange="{{mf.desc}}"></textarea></div>
-<div class="fld"><span class="flabel">Fans submit</span><div class="seg types" role="group" aria-label="Challenge type"><sc-for list="{{md.types}}" as="x" hint-placeholder-count="3"><button type="button" class="{{x.cls}}" onClick="{{x.pick}}" aria-pressed="{{x.on}}">{{x.label}}</button></sc-for></div></div>
+<div class="fld"><span class="flabel">Challenge type</span><div class="seg grp" role="group" aria-label="Challenge type"><sc-for list="{{md.groups}}" as="x" hint-placeholder-count="2"><button type="button" class="{{x.cls}}" onClick="{{x.pick}}" aria-pressed="{{x.on}}"><strong>{{x.label}}</strong><span>{{x.sub}}</span></button></sc-for></div></div>
+<sc-if value="{{md.isCreate}}" hint-placeholder-val="{{ true }}"><div class="fld"><span class="flabel">Fans submit</span><div class="seg" role="group" aria-label="What fans submit"><sc-for list="{{md.types}}" as="x" hint-placeholder-count="3"><button type="button" class="{{x.cls}}" onClick="{{x.pick}}" aria-pressed="{{x.on}}">{{x.label}}</button></sc-for></div></div></sc-if>
+<div class="fld"><span class="flabel">Thumbnail image (optional)</span>
+<div class="imgup"><span class="imgprev sq"><sc-if value="{{md.hasThumb}}" hint-placeholder-val="{{ false }}"><img src="{{md.d.thumb}}" alt="Challenge thumbnail"></sc-if><sc-if value="{{md.noThumb}}" hint-placeholder-val="{{ true }}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path></svg></sc-if></span>
+<div class="stack" style="gap: 8px"><label class="btn ghost sm">{{md.thumbLabel}}<input class="sr" type="file" accept="image/*" onChange="{{md.onThumb}}"></label><sc-if value="{{md.hasThumb}}" hint-placeholder-val="{{ false }}"><button type="button" class="lnk sm" onClick="{{md.clearThumb}}">Remove thumbnail</button></sc-if></div></div>
+<span class="muted sm">Shown when fans open the challenge.</span></div>
+
 <sc-if value="{{md.isMCType}}" hint-placeholder-val="{{ false }}"><div class="fld"><span class="flabel">Answer options (at least 2)</span><p class="muted sm" style="margin: 0">Type an answer, add an image, or both. Fans tap the one they choose.</p><sc-for list="{{md.opts}}" as="o" hint-placeholder-count="4"><div class="optrow"><span class="ol">{{o.letter}}</span><input class="in" aria-label="{{o.ph}} text" placeholder="{{o.ph}}" value="{{o.val}}" onChange="{{o.set}}"><sc-if value="{{o.hasImg}}" hint-placeholder-val="{{ false }}"><span class="othumb"><img src="{{o.img}}" alt="Image for {{o.ph}}"><button type="button" class="oclr" onClick="{{o.clearImg}}" aria-label="Remove image from {{o.ph}}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></span></sc-if><sc-if value="{{o.noImg}}" hint-placeholder-val="{{ true }}"><label class="oadd" title="Add an image"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path></svg><span class="sr">Add an image to {{o.ph}}</span><input class="sr" type="file" accept="image/*" onChange="{{o.onImg}}"></label></sc-if></div></sc-for></div></sc-if>
 <sc-if value="{{md.isTextType}}" hint-placeholder-val="{{ false }}"><p class="note">Fans type their own answer (up to 500 characters). You’ll read every answer on the Scoreboard and pick a winner.</p></sc-if>
 <div class="fld"><span class="flabel">Reward coin</span><div class="seg" role="group" aria-label="Reward coin"><sc-for list="{{md.rts}}" as="x" hint-placeholder-count="2"><button type="button" class="{{x.cls}}" onClick="{{x.pick}}" aria-pressed="{{x.on}}"><img src="{{x.img}}" alt="">{{x.label}}</button></sc-for></div></div>
@@ -1076,12 +1083,12 @@
 </template>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
-<script src="js/runtime.js?v=20261017c"></script>
+<script src="js/runtime.js?v=20261020a"></script>
 <script src="vendor/supabase.js"></script>
-<script src="js/config.js?v=20261017c"></script>
-<script src="js/games.js?v=20261017c"></script>
-<script src="js/app.js?v=20261017c"></script>
-<script src="js/live.js?v=20261017c"></script>
+<script src="js/config.js?v=20261020a"></script>
+<script src="js/games.js?v=20261020a"></script>
+<script src="js/app.js?v=20261020a"></script>
+<script src="js/live.js?v=20261020a"></script>
 <script>
   // Live app by default (Supabase). Add ?screen=<name> to preview a screen with demo data,
   // e.g. index.html?screen=fan-showday (see README for the list).

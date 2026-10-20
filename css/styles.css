@@ -580,3 +580,13 @@ button.pslot{cursor:pointer}
 .gresin .disp{font-size:34px;font-weight:900;letter-spacing:-.02em;background:linear-gradient(120deg,#ffe066,#f5a524);-webkit-background-clip:text;background-clip:text;color:transparent}
 .gresin .disp.lost{background:none;color:var(--fg)}
 .gresprize{display:flex;align-items:center;gap:8px}
+
+/* Challenge groups (CHOOSE / CREATE) and thumbnails */
+.rkind{display:block;width:max-content;margin-bottom:3px;font-size:10.5px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:6px;line-height:1.4}
+.rkind.choose{background:color-mix(in srgb,#38bdf8 22%,transparent);color:color-mix(in srgb,#0ea5e9 70%,var(--fg))}
+.rkind.create{background:color-mix(in srgb,#f472b6 22%,transparent);color:color-mix(in srgb,#ec4899 70%,var(--fg))}
+.seg.grp button{flex-direction:column;gap:1px;min-height:54px;padding:6px}
+.seg.grp button strong{font-size:14px;letter-spacing:.06em}
+.seg.grp button span{font-size:12px;font-weight:600;color:var(--mu)}
+.chthumb{display:block;width:100%;max-height:300px;object-fit:cover;border-radius:14px;border:1px solid var(--line);background:#000}
+.imgprev .i{color:var(--mu)}

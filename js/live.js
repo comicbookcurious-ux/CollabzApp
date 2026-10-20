@@ -118,7 +118,7 @@
       };
     });
     db.events = d.showday_events.map((e) => ({ id: e.id, aid: e.artist_id, tag: e.tag, title: e.title, desc: e.description || '', date: e.event_date || '', time: e.event_time ? String(e.event_time).slice(0, 5) : '', venue: e.venue || '', at: T(e.created_at) }));
-    db.challenges = d.challenges.map((c) => ({ id: c.id, aid: c.artist_id, ev: c.event_id, title: c.title, desc: c.description || '', type: c.type, options: c.options || [], imgs: c.option_images || [], rt: c.reward_coin, rw: c.reward_amount, max: c.max_submissions, winner: c.winner_id, claimed: c.winner_claimed, at: T(c.created_at) }));
+    db.challenges = d.challenges.map((c) => ({ id: c.id, aid: c.artist_id, ev: c.event_id, title: c.title, desc: c.description || '', type: c.type, options: c.options || [], imgs: c.option_images || [], thumb: c.thumbnail_url || '', rt: c.reward_coin, rw: c.reward_amount, max: c.max_submissions, winner: c.winner_id, claimed: c.winner_claimed, at: T(c.created_at) }));
     db.subs = d.submissions.map((s) => ({ id: s.id, cid: s.challenge_id, uid: s.fan_id, answer: s.answer || '', file: s.media_url || null, at: T(s.created_at) }));
     db.hidden = d.hidden_challenge_cards.map((h) => ({ uid: h.user_id, cid: h.challenge_id }));
     db.votes = d.submission_votes.map((v) => ({ sid: v.submission_id, uid: v.user_id, v: v.value }));
@@ -367,7 +367,9 @@
     if (!(max >= 1)) return this.setM('err', 'Allow at least 1 submission.');
     const row = { title: m.title.trim(), description: m.desc.trim(), type: m.type, options: m.type === 'mc' ? opts : [], reward_coin: m.rt, reward_amount: rw, max_submissions: max };
     const withImgs = m.type === 'mc' && mo.imgs.some(Boolean);
-    if (withImgs) toast.call(this, 'Uploading option images…', true);
+    const newThumb = (m.thumb || '').startsWith('blob:') && this.files['m:thumb'];
+    const hadThumb = m.id && !!((this.state.db.challenges.find((x) => x.id === m.id) || {}).thumb);
+    if (withImgs || newThumb) toast.call(this, 'Uploading images…', true);
     run.call(this, async () => {
       if (withImgs) {
         const urls = [];
@@ -377,6 +379,10 @@
         }
         row.option_images = urls;
       } else if (m.id && ((this.state.db.challenges.find((x) => x.id === m.id) || {}).imgs || []).length) row.option_images = [];
+      // thumbnail_url is only sent when used, so the app keeps working before 006_challenge_thumbnail.sql is run
+      if (newThumb) { row.thumbnail_url = await upload.call(this, 'submissions', this.files['m:thumb']); delete this.files['m:thumb']; }
+      else if (m.thumb) row.thumbnail_url = m.thumb;
+      else if (hadThumb) row.thumbnail_url = '';
       if (m.id) must(await this.sb.from('challenges').update(row).eq('id', m.id));
       else must(await this.sb.from('challenges').insert(Object.assign({ artist_id: this.state.me, event_id: m.ev || null }, row)));
     }, { modal: null, toast: null });

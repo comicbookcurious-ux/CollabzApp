@@ -125,6 +125,7 @@ create table if not exists public.challenges (
   type            public.challenge_type not null,
   options         text[] not null default '{}',
   option_images   text[] not null default '{}',   -- optional image per option ('' = none)
+  thumbnail_url   text not null default '',     -- optional thumbnail shown when the challenge is opened
   reward_coin     public.coin_type not null default 'gold',
   reward_amount   int not null default 1 check (reward_amount between 1 and 1000),
   max_submissions int not null default 100 check (max_submissions >= 1),
@@ -629,9 +630,9 @@ revoke insert, update, delete on public.wallets from anon, authenticated;
 revoke insert, update on public.artist_genres from anon, authenticated;   -- use set_my_genres()
 
 revoke insert, update on public.challenges from anon, authenticated;
-grant insert (artist_id, event_id, title, description, type, options, option_images, reward_coin, reward_amount, max_submissions)
+grant insert (artist_id, event_id, title, description, type, options, option_images, thumbnail_url, reward_coin, reward_amount, max_submissions)
   on public.challenges to authenticated;
-grant update (event_id, title, description, type, options, option_images, reward_coin, reward_amount, max_submissions)
+grant update (event_id, title, description, type, options, option_images, thumbnail_url, reward_coin, reward_amount, max_submissions)
   on public.challenges to authenticated;
 
 revoke insert, update, delete on public.submissions from anon, authenticated;   -- use submit/cancel functions
