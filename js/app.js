@@ -275,6 +275,16 @@ class Component extends DCLogic {
     const followed = (u.following || []).filter(id => db.users[id] && db.users[id].role === 'artist');
     return followed.length ? followed[followed.length - 1] : null;
   }
+  // Switch artist tab. If the page is scrolled past the tab bar, bring the start of the new tab into view.
+  pickTab(t) {
+    this.setState({ tab: t, open: null });
+    try {
+      const a = document.querySelector('.tabanchor'), head = document.querySelector('.top');
+      if (!a) return;
+      const y = a.getBoundingClientRect().top + window.scrollY - (head ? head.offsetHeight : 0) - 8;
+      if (window.scrollY > y) window.scrollTo({ top: y, behavior: 'smooth' });
+    } catch (e) {}
+  }
   myArtists(u) {
     const db = this.state.db, m = {};
     const touch = (aid, at, took) => { if (!db.users[aid] || db.users[aid].role !== 'artist') return; const r = m[aid] || (m[aid] = { id: aid, at: 0, took: false, follows: false }); r.at = Math.max(r.at, at || 0); if (took) r.took = true; };
@@ -1298,7 +1308,7 @@ class Component extends DCLogic {
         noVideoText: isOwner ? 'Fans see your welcome video here. Upload one to say hi.' : A.name + ' hasn’t added a welcome video yet.',
         uploadVideo: (e) => { const fl = e.target.files && e.target.files[0]; if (!fl) return; const url = URL.createObjectURL(fl); this.mut(db2 => { db2.users[A.id].video = url; }); }
       };
-      tabs = [['challenges', 'Challenges'], ['showday', 'Showday'], ['lottery', 'Lottery'], ['community', 'Community'], ['games', 'Games'], ['scoreboard', 'Scoreboard']].map(t => ({ label: t[1], on: s.tab === t[0], cls: s.tab === t[0] ? 'tab on' : 'tab', pick: () => this.setState({ tab: t[0], open: null }) }));
+      tabs = [['challenges', 'Challenges'], ['showday', 'Showday'], ['lottery', 'Lottery'], ['community', 'Community', 'Lounge'], ['games', 'Games'], ['scoreboard', 'Scoreboard', 'Scores']].map(t => ({ label: t[1], short: t[2] || t[1], ['is_' + t[0]]: true, on: s.tab === t[0], cls: s.tab === t[0] ? 'tab on' : 'tab', pick: () => this.pickTab(t[0]) }));
       const chs = db.challenges.filter(c => c.aid === A.id).sort((x, y) => y.at - x.at);
       const T = s.tab;
       if (T === 'challenges') chs.filter(c => !c.ev).forEach(c => { const it = this.chItem(c, ctx); if (it) blocks.push(it); });
