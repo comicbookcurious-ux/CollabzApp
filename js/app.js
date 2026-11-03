@@ -11,7 +11,8 @@ class Component extends DCLogic {
       tab: 'challenges', open: null, ans: {},
       auth: this.blankAuth(), setup: null, genre: 'music', gsel: null, modal: null, pop: null,
       sb: { cat: 'challenge', sel: '' }, q: '', forumOpen: null, forumDraft: null, reply: '',
-      chatWith: null, chatText: '', play: null
+      chatWith: null, chatText: '', play: null,
+      now: Date.now(), pv: null, pub: null, vpick: null, verr: '', cs: null
     };
   }
   // Preview states: each screen artboard on the canvas mounts this file with a `start` value.
@@ -76,7 +77,7 @@ class Component extends DCLogic {
         if (v === 'trivia') S.play.st = Object.assign(S.play.st, { busy: false, qAt: t, left: 11 });
         break;
       }
-      default: break;
+      default: this.pilotStart(k, S, as, art); break;
     }
     return S;
   }
@@ -167,8 +168,8 @@ class Component extends DCLogic {
     ];
     const gplays = [{ gid: 'g1', uid: 'f2', plays: 3, won: true, best: 4, wonAt: t - 2 * D, at: t - 2 * D }, { gid: 'g3', uid: 'f2', plays: 2, won: false, best: null, at: t - D }, { gid: 'g8', uid: 'f2', plays: 1, won: true, best: 14, wonAt: t - 3 * H, at: t - 3 * H }];
     const ch = (o) => Object.assign({ ev: null, options: [], imgs: [], rt: 'gold', rw: 1, max: 100, winner: null, claimed: false, at: t - 2 * D }, o);
-    return {
-      users: users,
+    const out = {
+      users: users, managers: [], badges: [], guestVotes: [], invites: [], admins: [], voteRewards: [], flags: {}, pending: [],
       challenges: [
         ch({ id: 'c1', aid: 'a2', title: 'Act out your favourite line from my last film', desc: 'Film yourself delivering the line. Costumes encouraged.', type: 'video', rt: 'gold', rw: 2, at: t - 4 * D }),
         ch({ id: 'c2', aid: 'a2', title: 'Where did we film the final scene?', desc: 'Pick one. Hint: it was very cold.', thumb: this.demoImg('#0c4a6e', '#67e8f9'), type: 'mc', options: ['Perth', 'Auckland', 'Vancouver', 'Reykjavik'], rt: 'silver', rw: 3, winner: 'f2', claimed: true, at: t - 3 * D }),
@@ -211,6 +212,7 @@ class Component extends DCLogic {
         { id: 'n2', uid: 'a2', text: 'Marco Diaz submitted to "Take a selfie inside the theatre."', at: t - 20 * H, read: false, link: { type: 'score', id: 'a2', cat: 'showday', sel: 'c4' } }
       ]
     };
+    return this.pilotSeed(out);
   }
 
   // ---------- state plumbing ----------
@@ -250,13 +252,20 @@ class Component extends DCLogic {
   }
   // Up/down votes on image and video submissions (fans only, not on your own entry)
   vote(sid, v) {
-    const meId = this.state.me;
+    const meId = this.state.me, sub = this.state.db.subs.find(x => x.id === sid), c = sub && this.state.db.challenges.find(x => x.id === sub.cid);
+    if (c && (!this.win(c).open || c.claimed)) return this.flash(this.win(c).text || 'Voting has closed.', true);
+    let coin = false;
     this.mut(db => {
-      db.votes = db.votes || [];
+      db.votes = db.votes || []; db.voteRewards = db.voteRewards || [];
       const cur = db.votes.find(x => x.sid === sid && x.uid === meId);
       db.votes = db.votes.filter(x => !(x.sid === sid && x.uid === meId));
-      if (!cur || cur.v !== v) db.votes.push({ sid: sid, uid: meId, v: v });
+      if (!cur || cur.v !== v) {
+        db.votes.push({ sid: sid, uid: meId, v: v });
+        // The first vote on each entry earns 1 silver coin
+        if (!db.voteRewards.some(r => r.sid === sid && r.uid === meId)) { db.voteRewards.push({ sid: sid, uid: meId }); db.users[meId].coins.silver += 1; coin = true; }
+      }
     });
+    if (coin) this.flash('+1 silver coin for voting');
   }
   // Remember the last artist page a fan was on (per device), so logging back in returns there.
   rememberArtist(id) {
@@ -302,6 +311,7 @@ class Component extends DCLogic {
     const s = this.state, me = s.db.users[s.me]; if (!me) return;
     if (me.role === 'artist') this.openArtist(me.id);
     else if (s.viewing && s.db.users[s.viewing]) this.openArtist(s.viewing);
+    else if (this.managedBy(me.id).length) this.openArtist(this.managedBy(me.id)[0]);
     else this.go('pickArtist', { genre: me.genre || 'music' });
   }
   followLink(l) {
@@ -322,7 +332,8 @@ class Component extends DCLogic {
     if (u.role === 'artist') this.go('artist', Object.assign(base, { viewing: id, tab: 'challenges', sb: { cat: 'challenge', sel: '' } }));
     else {
       // Fans land straight back on the last artist they collaborated with (no Back button: history starts here)
-      const last = this.lastArtistFor(u);
+      // Managers (e.g. Steve and Nate) land on the creator account they run
+      const last = this.managedBy(u.id)[0] || this.lastArtistFor(u);
       if (last) this.go('artist', Object.assign(base, { viewing: last, tab: 'challenges', sb: { cat: 'challenge', sel: '' } }));
       else this.go('pickArtist', Object.assign(base, { genre: u.genre || 'music', viewing: null }));
     }
@@ -341,11 +352,20 @@ class Component extends DCLogic {
     if (!nm) return this.authErr('Add your name.');
     if (!/^\S+@\S+\.\S+$/.test(em)) return this.authErr('Enter a valid email address.');
     if (a.password.length < 6) return this.authErr('Your password needs at least 6 characters.');
+    const chk = this.signupCheck(a); if (chk) return this.authErr(chk);
+    const code = (a.invite || '').trim().toUpperCase(), inv = this.state.db.flags || {};
+    if (code || inv.inviteOnly) { if (!code) return this.authErr('Collabz is invite-only during the pilot. Enter the invite code from your invitation.'); const ie = this.inviteError(code); if (ie) return this.authErr(ie); }
     if (Object.values(this.state.db.users).some(x => x.email.toLowerCase() === em)) return this.authErr('An account with this email already exists. Log in instead.');
-    const artist = a.role === 'artist', id = this.uid(artist ? 'a' : 'f');
-    const u = { id: id, role: a.role, name: nm, email: em, password: a.password, genre: '', bio: '', location: '', avatar: null, video: null, socials: { facebook: '', instagram: '', x: '', tiktok: '', youtube: '' }, coins: artist ? { silver: 50, gold: 20, green: 10 } : { silver: 10, gold: 10, green: 0 }, tickets: artist ? 0 : 10, followers: [], following: [], theme: 'default', termsAccepted: false };
+    const artist = a.role === 'artist', id = this.uid(artist ? 'a' : 'f'), kid = this.ageOf(a.dob) < 13;
+    const u = { id: id, role: a.role, name: nm, email: em, password: a.password, genre: '', bio: '', location: '', avatar: null, video: null, socials: { facebook: '', instagram: '', x: '', tiktok: '', youtube: '' }, coins: artist ? { silver: 50, gold: 20, green: 10 } : { silver: 10, gold: 10, green: 0 }, tickets: artist ? 0 : 10, followers: [], following: [], theme: 'default', termsAccepted: false,
+      birthDate: a.dob, restricted: kid, parentEmail: kid ? a.parent.trim().toLowerCase() : '', consentToken: kid ? this.uid('ct') : null };
     const setup = { role: a.role, step: 0, err: '', genres: [], name: nm, bio: '', location: '', avatar: null, video: null, videoName: '', facebook: '', instagram: '', x: '', tiktok: '', youtube: '' };
-    this.mut(db => { db.users[id] = u; this.notify(db, id, artist ? 'Welcome to Collabz! Your starter balance is 50 silver, 20 gold and 10 green coins.' : 'Welcome to Collabz! You start with 10 silver, 10 gold and 10 tickets.'); }, { me: id, screen: 'terms', termsOk: false, setup: setup, auth: this.blankAuth() });
+    this.mut(db => {
+      db.users[id] = u; this.notify(db, id, artist ? 'Welcome to Collabz! Your starter balance is 50 silver, 20 gold and 10 green coins.' : 'Welcome to Collabz! You start with 10 silver, 10 gold and 10 tickets.');
+      if (kid) this.notify(db, id, 'We\u2019ve asked your parent or guardian (' + u.parentEmail + ') to say it\u2019s OK for you to use Collabz. Until they do, your posts stay private.');
+      const iv = code ? (db.invites || []).find(x => x.code === code) : null;
+      if (iv) { iv.uses += 1; const ar = db.users[iv.aid]; if (ar && ar.id !== id) { u.following.push(ar.id); ar.followers.push(id); } }
+    }, { me: id, screen: 'terms', termsOk: false, setup: setup, auth: this.blankAuth() });
   }
   doForgot(e) {
     if (e) e.preventDefault();
@@ -405,23 +425,27 @@ class Component extends DCLogic {
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
   // Two kinds of challenge: CHOOSE (pick from multiple-choice options) and CREATE (fans make something: text, image or video)
-  chGroup(t) { return t === 'mc' ? 'CHOOSE' : 'CREATE'; }
-  typeName(t, long) { return this.chGroup(t) + ' · ' + ((long ? { mc: 'Multiple choice', text: 'Text answer', image: 'Image', video: 'Video' } : { mc: 'Multiple choice', text: 'Text', image: 'Image', video: 'Video' })[t] || t); }
+  chGroup(t) { return t === 'mc' || t === 'listen' ? 'CHOOSE' : 'CREATE'; }
+  typeName(t, long) { return this.chGroup(t) + ' · ' + ((long ? { mc: 'Multiple choice', listen: 'Listen and vote', text: 'Text answer', image: 'Image', video: 'Video' } : { mc: 'Multiple choice', listen: 'Listen and vote', text: 'Text', image: 'Image', video: 'Video' })[t] || t); }
   hasMedia(c) { return c.type === 'image' || c.type === 'video'; }
   optImg(c, i) { return (c.imgs && c.imgs[i]) || ''; }
-  ansReady(c, d) { return c.type === 'mc' ? d.choice != null : (c.type === 'text' ? !!(d.text || '').trim() : !!d.file); }
-  ansValue(c, d) { return c.type === 'mc' ? c.options[d.choice] : (c.type === 'text' ? (d.text || '').trim().slice(0, 500) : ''); }
+  ansReady(c, d) { return this.isChoice(c) ? d.choice != null : (c.type === 'text' ? !!(d.text || '').trim() : !!d.file); }
+  ansValue(c, d) { return this.isChoice(c) ? c.options[d.choice] : (c.type === 'text' ? (d.text || '').trim().slice(0, 500) : ''); }
   setAns(cid, patch) { const a = Object.assign({}, this.state.ans); a[cid] = Object.assign({}, a[cid] || {}, patch); this.setState({ ans: a }); }
-  ansFile(cid, e) { const f = e.target.files && e.target.files[0]; if (!f) return; this.setAns(cid, { file: URL.createObjectURL(f), name: f.name }); }
+  ansFile(cid, e) { const f = e.target.files && e.target.files[0]; if (!f) return; this.setAns(cid, { file: URL.createObjectURL(f), name: f.name, hash: null }); this.fileHash(f).then(h => { if (h) this.setAns(cid, { hash: h }); }); }
   submit(cid) {
     const s = this.state, d = s.ans[cid] || {}, c = s.db.challenges.find(x => x.id === cid); if (!c) return;
     if (!this.ansReady(c, d)) return;
+    const w = this.win(c); if (!w.open) return this.flash(w.text || 'Voting has closed.', true);
+    if (this.canManage(c.aid)) return this.flash('You manage this account, so you can\u2019t take part in its challenges.', true);
     const ans = Object.assign({}, s.ans); delete ans[cid];
     this.mut(db => {
-      const me = db.users[s.me];
-      db.subs.push({ id: this.uid('s'), cid: cid, uid: me.id, answer: this.ansValue(c, d), file: this.hasMedia(c) ? (d.file || null) : null, at: Date.now() });
+      const me = db.users[s.me], hash = this.hasMedia(c) ? (d.hash || null) : null;
+      // Exact same file as an earlier entry for this creator? Flag it for the producers.
+      const dup = hash ? db.subs.find(x => x.hash === hash && db.challenges.some(y => y.id === x.cid && y.aid === c.aid)) : null;
+      db.subs.push({ id: this.uid('s'), cid: cid, uid: me.id, answer: this.ansValue(c, d), file: this.hasMedia(c) ? (d.file || null) : null, at: Date.now(), hash: hash, dup: dup ? dup.id : null });
       me.coins[c.rt] += c.rw;
-      this.notify(db, c.aid, me.name + ' submitted to "' + c.title + '".', { type: 'score', id: c.aid, cat: c.ev ? 'showday' : 'challenge', sel: c.id });
+      this.notify(db, c.aid, me.name + (this.isChoice(c) ? ' voted in "' : ' submitted to "') + c.title + '".' + (dup ? ' (Same image as an earlier entry.)' : ''), { type: 'score', id: c.aid, cat: c.ev ? 'showday' : 'challenge', sel: c.id });
     }, { ans: ans, pop: this.mkPop(c.rt, '+' + c.rw, 'Reward earned!', this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + ' for taking part in "' + c.title + '"') });
   }
   cancelSub(subId) {
@@ -496,20 +520,36 @@ class Component extends DCLogic {
   setM(k, v) { this.setState({ modal: Object.assign({}, this.state.modal, { err: '' }, { [k]: v }) }); }
   mFile(k, e) { const f = e.target.files && e.target.files[0]; if (!f) return; const p = { [k]: URL.createObjectURL(f), err: '' }; if (k === 'video') p.videoName = f.name; this.setState({ modal: Object.assign({}, this.state.modal, p) }); }
   openChModal(c, ev) {
-    const o = (c && c.options) || [], im = (c && c.imgs) || [];
-    this.setState({ modal: { kind: 'ch', id: c ? c.id : null, ev: c ? c.ev : (ev || null), title: c ? c.title : '', desc: c ? c.desc : '', type: c ? c.type : 'image', o0: o[0] || '', o1: o[1] || '', o2: o[2] || '', o3: o[3] || '', i0: im[0] || '', i1: im[1] || '', i2: im[2] || '', i3: im[3] || '', thumb: c ? (c.thumb || '') : '', lastCreate: c && c.type !== 'mc' ? c.type : 'image', rt: c ? c.rt : 'gold', rw: String(c ? c.rw : 1), max: String(c ? c.max : 100), err: '' } });
+    const o = (c && c.options) || [], im = (c && c.imgs) || [], au = (c && c.audio) || [];
+    const an = (i) => (au[i] ? 'Clip ' + 'ABCD'[i] : '');
+    this.setState({ modal: { kind: 'ch', id: c ? c.id : null, ev: c ? c.ev : (ev || null), title: c ? c.title : '', desc: c ? c.desc : '', type: c ? c.type : 'image', o0: o[0] || '', o1: o[1] || '', o2: o[2] || '', o3: o[3] || '', i0: im[0] || '', i1: im[1] || '', i2: im[2] || '', i3: im[3] || '',
+      a0: au[0] || '', a1: au[1] || '', a2: au[2] || '', a3: au[3] || '', an0: an(0), an1: an(1), an2: an(2), an3: an(3),
+      opens: c ? this.toLocal(c.opens) : '', closes: c ? this.toLocal(c.closes) : '', guest: !!(c && c.guest),
+      thumb: c ? (c.thumb || '') : '', lastCreate: c && !this.isChoice(c) ? c.type : 'image', lastChoose: c && this.isChoice(c) ? c.type : 'mc', rt: c ? c.rt : 'gold', rw: String(c ? c.rw : 1), max: String(c ? c.max : 100), err: '' } });
+  }
+  // Checks shared by the demo and live versions of saveCh
+  chErr(m, mo) {
+    const opts = mo.labels, rw = parseInt(m.rw, 10), max = parseInt(m.max, 10), choice = m.type === 'mc' || m.type === 'listen';
+    if (!m.title.trim()) return 'Give the challenge a title.';
+    if (choice && opts.length < 2) return m.type === 'listen' ? 'Add at least two audio clips to vote on.' : 'Add at least two answer options (text, an image, or both).';
+    if (m.type === 'listen' && mo.audio.some(a => !a)) return 'Every option needs an audio clip. Add one, or clear that option\u2019s name.';
+    if (choice && new Set(opts.map(x => x.toLowerCase())).size !== opts.length) return 'Each answer option needs a different label.';
+    if (!(rw >= 1)) return 'The reward needs to be at least 1 coin.';
+    if (!(max >= 1)) return 'Allow at least 1 submission.';
+    const o = this.fromLocal(m.opens), c = this.fromLocal(m.closes);
+    if ((m.opens && !o) || (m.closes && !c)) return 'Check the voting window dates.';
+    if (o && c && c <= o) return 'The closing time needs to be after the opening time.';
+    if (c && c <= Date.now() && !(m.id && (this.state.db.challenges.find(x => x.id === m.id) || {}).closes === c)) return 'The closing time is in the past.';
+    return '';
   }
   saveCh() {
-    const m = this.state.modal, me = this.state.me;
-    const mo = this.mcOptions(m), opts = mo.labels;
+    const m = this.state.modal, me = this.actor();
+    const mo = this.mcOptions(m), opts = mo.labels, choice = m.type === 'mc' || m.type === 'listen';
     const rw = parseInt(m.rw, 10), max = parseInt(m.max, 10);
-    if (!m.title.trim()) return this.setM('err', 'Give the challenge a title.');
-    if (m.type === 'mc' && opts.length < 2) return this.setM('err', 'Add at least two answer options (text, an image, or both).');
-    if (m.type === 'mc' && new Set(opts.map(x => x.toLowerCase())).size !== opts.length) return this.setM('err', 'Each answer option needs a different label.');
-    if (!(rw >= 1)) return this.setM('err', 'The reward needs to be at least 1 coin.');
-    if (!(max >= 1)) return this.setM('err', 'Allow at least 1 submission.');
+    const err = this.chErr(m, mo); if (err) return this.setM('err', err);
     this.mut(db => {
-      const data = { title: m.title.trim(), desc: m.desc.trim(), type: m.type, options: m.type === 'mc' ? opts : [], imgs: m.type === 'mc' && mo.imgs.some(Boolean) ? mo.imgs : [], thumb: m.thumb || '', rt: m.rt, rw: rw, max: max };
+      const data = { title: m.title.trim(), desc: m.desc.trim(), type: m.type, options: choice ? opts : [], imgs: m.type === 'mc' && mo.imgs.some(Boolean) ? mo.imgs : [], audio: m.type === 'listen' ? mo.audio : [], thumb: m.thumb || '', rt: m.rt, rw: rw, max: max,
+        opens: this.fromLocal(m.opens), closes: this.fromLocal(m.closes), guest: choice && !!m.guest };
       if (m.id) Object.assign(db.challenges.find(x => x.id === m.id), data);
       else {
         const c = Object.assign({ id: this.uid('c'), aid: me, ev: m.ev, winner: null, claimed: false, at: Date.now() }, data);
@@ -520,17 +560,17 @@ class Component extends DCLogic {
   }
   // Options the artist filled in (text, image or both). An image without text gets a label like "Option B".
   mcOptions(m) {
-    const labels = [], imgs = [];
+    const labels = [], imgs = [], audio = [], slots = [], listen = m.type === 'listen';
     [0, 1, 2, 3].forEach(i => {
-      const t = (m['o' + i] || '').trim(), im = m['i' + i] || '';
-      if (!t && !im) return;
-      labels.push(t || 'Option ' + 'ABCD'[labels.length]); imgs.push(im);
+      const t = (m['o' + i] || '').trim(), im = listen ? '' : (m['i' + i] || ''), au = listen ? (m['a' + i] || '') : '';
+      if (!t && !im && !au) return;
+      labels.push(t || (listen ? 'Take ' : 'Option ') + 'ABCD'[labels.length]); imgs.push(im); audio.push(au); slots.push(i);
     });
-    return { labels: labels, imgs: imgs };
+    return { labels: labels, imgs: imgs, audio: audio, slots: slots };
   }
   openEvModal(e) { this.setState({ modal: { kind: 'ev', id: e ? e.id : null, tag: e ? e.tag : 'Premiere', title: e ? e.title : '', desc: e ? e.desc : '', date: e ? e.date : '', time: e ? e.time : '', venue: e ? e.venue : '', err: '' } }); }
   saveEv() {
-    const m = this.state.modal, me = this.state.me;
+    const m = this.state.modal, me = this.actor();
     if (!m.title.trim()) return this.setM('err', 'Give the event a name.');
     if (!m.date) return this.setM('err', 'Add the date of the show.');
     this.mut(db => {
@@ -544,7 +584,7 @@ class Component extends DCLogic {
   }
   openLtModal(l) { this.setState({ modal: { kind: 'lt', id: l ? l.id : null, title: l ? l.title : '', desc: l ? l.desc : '', cost: String(l ? l.cost : 1), winners: String(l ? l.winners : 1), date: l ? l.date : '', err: '' } }); }
   saveLt() {
-    const m = this.state.modal, me = this.state.me, cost = parseInt(m.cost, 10), w = parseInt(m.winners, 10);
+    const m = this.state.modal, me = this.actor(), cost = parseInt(m.cost, 10), w = parseInt(m.winners, 10);
     if (!m.title.trim()) return this.setM('err', 'Describe the experience fans can win.');
     if (!(cost >= 1)) return this.setM('err', 'Each entry needs to cost at least 1 ticket.');
     if (!(w >= 1)) return this.setM('err', 'There needs to be at least 1 winner.');
@@ -561,6 +601,8 @@ class Component extends DCLogic {
   doConfirm() {
     const m = this.state.modal, id = m.arg;
     if (m.action === 'cancelSub') return this.cancelSub(id);
+    if (m.action === 'elect') return this.electOption(id, m.opt);
+    if (m.action === 'rmMgr') return this.removeManager(id);
     this.mut(db => {
       if (m.action === 'delCh') { db.challenges = db.challenges.filter(x => x.id !== id); db.subs = db.subs.filter(x => x.cid !== id); }
       if (m.action === 'delEv') { const ids = db.challenges.filter(x => x.ev === id).map(x => x.id); db.events = db.events.filter(x => x.id !== id); db.challenges = db.challenges.filter(x => x.ev !== id); db.subs = db.subs.filter(x => !ids.includes(x.cid)); }
@@ -570,7 +612,7 @@ class Component extends DCLogic {
   }
   editDraft(u) {
     const s = u.socials || {};
-    return { kind: 'edit', name: u.name, email: u.email, bio: u.bio || '', location: u.location || '', genres: this.gIds(u).slice(), avatar: u.avatar, video: u.video, videoName: '', theme: u.theme || 'default', facebook: s.facebook || '', instagram: s.instagram || '', x: s.x || '', tiktok: s.tiktok || '', youtube: s.youtube || '', err: '' };
+    return { kind: 'edit', name: u.name, email: u.email, bio: u.bio || '', location: u.location || '', genres: this.gIds(u).slice(), avatar: u.avatar, banner: u.banner || '', video: u.video, videoName: '', theme: u.theme || 'default', facebook: s.facebook || '', instagram: s.instagram || '', x: s.x || '', tiktok: s.tiktok || '', youtube: s.youtube || '', err: '' };
   }
   openEdit() {
     const u = this.state.db.users[this.state.me]; if (!u) return;
@@ -585,7 +627,7 @@ class Component extends DCLogic {
     this.mut(db => {
       const u = db.users[me];
       Object.assign(u, { name: m.name.trim(), email: em, bio: m.bio.trim(), location: m.location.trim(), avatar: m.avatar, socials: { facebook: m.facebook.trim(), instagram: m.instagram.trim(), x: m.x.trim(), tiktok: m.tiktok.trim(), youtube: m.youtube.trim() } });
-      if (u.role === 'artist') { u.genres = m.genres.slice(); u.genre = m.genres[0]; u.video = m.video; u.theme = m.theme; }
+      if (u.role === 'artist') { u.genres = m.genres.slice(); u.genre = m.genres[0]; u.video = m.video; u.theme = m.theme; u.banner = m.banner || ''; }
     }, { modal: null });
   }
   deleteAccount() {
@@ -687,74 +729,94 @@ class Component extends DCLogic {
   // ---------- view models ----------
   chItem(c, ctx) {
     const s = this.state, db = s.db, me = ctx.me;
-    const subs = db.subs.filter(x => x.cid === c.id);
+    const subs = db.subs.filter(x => x.cid === c.id), shown = subs.filter(x => !this.hiddenFor(x.uid, c.aid));
     if (ctx.isFan && db.hidden.some(h => h.uid === me.id && h.cid === c.id)) return null;
     const mine = me ? subs.find(x => x.uid === me.id) : null;
     const iWon = !!me && c.winner === me.id, full = subs.length >= c.max, open = s.open === c.id;
-    const d = s.ans[c.id] || {};
+    const d = s.ans[c.id] || {}, choice = this.isChoice(c), w = this.win(c), isL = c.type === 'listen';
+    if (w.tick && (open || ctx.isOwner)) this.needTick();
     let status = '', stCls = 'st';
     if (ctx.isFan) {
       if (iWon && !c.claimed) { status = 'You won!'; stCls = 'st win'; }
       else if (iWon) { status = 'Won · claimed'; stCls = 'st done'; }
-      else if (mine) { status = 'Participated'; stCls = 'st done'; }
+      else if (mine) { status = isL ? 'Voted' : 'Participated'; stCls = 'st done'; }
+      else if (c.elected || w.closed) status = 'Closed';
+      else if (w.soon) status = 'Opens soon';
       else if (full) status = 'Full';
-    } else if (ctx.isOwner) { status = c.winner ? (c.claimed ? 'Winner claimed' : 'Winner picked') : this.plural(subs.length, 'entry', 'entries'); if (c.winner) stCls = 'st done'; }
+      else if (w.has && w.open) { status = 'Open'; stCls = 'st live'; }
+    } else if (ctx.isOwner) {
+      if (choice) { status = c.elected ? 'Winner elected' : this.plural(this.tally(c).total, 'vote', 'votes'); stCls = c.elected ? 'st done' : (w.open && w.has ? 'st live' : 'st'); }
+      else { status = c.winner ? (c.claimed ? 'Winner claimed' : 'Winner picked') : this.plural(subs.length, 'entry', 'entries'); if (c.winner) stCls = 'st done'; }
+    }
     const typeLabel = this.typeName(c.type, true), imgOpts = c.type === 'mc' && (c.imgs || []).some(Boolean);
     const art = this.user(c.aid);
+    const tv = choice ? this.tally(c) : null;
+    const showResults = choice && (ctx.isOwner || c.elected || w.closed || (ctx.isFan && !!mine));
     return {
       isCh: true, isEvHead: false, isEvFoot: false, isLt: false,
       outer: c.ev ? 'evmid' : 'gap', boxCls: open ? 'blk open' : 'blk',
       title: c.title, desc: c.desc || 'No extra details.', typeLabel: typeLabel,
-      isMC: c.type === 'mc', isText: c.type === 'text', isImage: c.type === 'image', isVideo: c.type === 'video',
-      group: this.chGroup(c.type), groupCls: c.type === 'mc' ? 'rkind choose' : 'rkind create', thumb: c.thumb || '', hasThumb: !!c.thumb,
-      imgOpts: imgOpts, txtOpts: c.type === 'mc' && !imgOpts,
+      isMC: c.type === 'mc', isListen: c.type === 'listen', isText: c.type === 'text', isImage: c.type === 'image', isVideo: c.type === 'video',
+      group: this.chGroup(c.type), groupCls: choice ? 'rkind choose' : 'rkind create', thumb: c.thumb || '', hasThumb: !!c.thumb,
+      imgOpts: imgOpts, txtOpts: c.type === 'mc' && !imgOpts, audOpts: c.type === 'listen',
       coinImg: this.coin(c.rt), rw: c.rw, rtName: c.rt, rewardText: '+' + c.rw + ' ' + c.rt, count: subs.length,
-      countText: subs.length + ' of ' + c.max + ' submissions', artistName: art.name,
+      countText: choice ? this.plural(tv.total, 'vote', 'votes') + ' so far' : subs.length + ' of ' + c.max + ' submissions', artistName: art.name,
       open: open, chevCls: open ? 'i chev up' : 'i chev', toggle: () => this.setState({ open: open ? null : c.id }),
       hasStatus: !!status, status: status, stCls: stCls,
       owner: ctx.isOwner, fan: ctx.isFan, visitor: ctx.isVisitor,
+      hasWin: !!w.text, winText: w.text, winCls: w.cls, winWhen: this.windowText(c), hasWinWhen: !!this.windowText(c) && !c.elected,
+      hasElected: !!c.elected, electedText: c.elected ? '“' + c.elected + '” won' : '',
+      showResults: showResults, liveTag: ctx.isOwner && choice && w.open && !c.elected, tally: tv || { rows: [] }, tallyText: tv ? tv.totalText : '',
+      canQr: ctx.isOwner && choice && !c.elected, qr: () => this.openQr(c.id), stage: () => { try { window.open(this.pubUrl('stage', c.id), '_blank', 'noopener'); } catch (e) {} },
+      guestOn: !!c.guest,
       edit: () => this.openChModal(c), del: () => this.confirm('Delete this challenge?', '"' + c.title + '" and its ' + this.plural(subs.length, 'submission', 'submissions') + ' will be removed.', 'delCh', c.id),
-      viewSubs: () => this.setState({ tab: 'scoreboard', sb: { cat: c.ev ? 'showday' : 'challenge', sel: c.id } }),
-      canSubmit: ctx.isFan && !mine && !full && !iWon, showFull: ctx.isFan && !mine && full && !iWon,
-      participated: ctx.isFan && !!mine && !iWon, wonOpen: ctx.isFan && iWon && !c.claimed, wonDone: ctx.isFan && iWon && c.claimed,
+      viewSubs: () => this.setState({ tab: 'scoreboard', sb: { cat: c.ev ? 'showday' : 'challenge', sel: c.id } }), subsLabel: choice ? 'Live results & elect winner' : 'Submissions & winner',
+      canSubmit: ctx.isFan && !mine && !full && !iWon && w.open, showFull: ctx.isFan && !mine && full && !iWon && w.open,
+      showShut: ctx.isFan && !mine && !iWon && !w.open, shutText: w.soon ? w.text + '. Come back then to take part.' : (c.elected ? 'Voting has closed and the winner was elected.' : 'Voting has closed for this challenge.'),
+      participated: ctx.isFan && !!mine && !iWon, canCancel: w.open && !c.elected, wonOpen: ctx.isFan && iWon && !c.claimed, wonDone: ctx.isFan && iWon && c.claimed,
       claim: () => this.claim(c.id), remove: () => this.hideCard(c.id),
-      options: (c.options || []).map((o, i) => { const im = this.optImg(c, i); return { label: o, letter: 'ABCD'[i], img: im, hasImg: !!im, noImg: !im, on: d.choice === i, cls: d.choice === i ? 'opt on' : 'opt', tcls: d.choice === i ? 'iopt on' : 'iopt', pick: () => this.setAns(c.id, { choice: i }) }; }),
+      options: (c.options || []).map((o, i) => { const im = this.optImg(c, i), au = this.optAudio(c, i); return { label: o, letter: 'ABCD'[i], img: im, hasImg: !!im, noImg: !im, audio: au, hasAudio: !!au, on: d.choice === i, cls: d.choice === i ? 'opt on' : 'opt', tcls: d.choice === i ? 'iopt on' : 'iopt', acls: d.choice === i ? 'aopt on' : 'aopt', pick: () => this.setAns(c.id, { choice: i }) }; }),
       textVal: d.text || '', setText: (e) => this.setAns(c.id, { text: e.target.value.slice(0, 500) }), textCount: (d.text || '').length + ' / 500',
       needsFile: this.hasMedia(c), accept: c.type === 'image' ? 'image/*' : 'video/*',
       fileLabel: d.file ? 'Chosen: ' + d.name + ' (tap to change)' : (c.type === 'image' ? 'Choose a photo or artwork' : 'Choose a video'),
       onFile: (e) => this.ansFile(c.id, e), file: d.file || '', fileImg: c.type === 'image' && !!d.file, fileVid: c.type === 'video' && !!d.file,
-      notReady: !this.ansReady(c, d), submit: () => this.submit(c.id),
+      notReady: !this.ansReady(c, d), submit: () => this.submit(c.id), submitLabel: isL ? 'Vote & earn' : 'Submit & earn',
       myAnsImg: mine && c.type === 'mc' ? this.optImg(c, (c.options || []).indexOf(mine.answer)) : '',
-      myText: mine ? (c.type === 'mc' || c.type === 'text' ? 'Your answer: ' + (c.type === 'text' ? '“' + mine.answer + '”' : mine.answer) + '. You earned ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + '.' : 'Sent ' + this.ago(mine.at) + '. You earned ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + '.') : '',
+      myText: mine ? (choice || c.type === 'text' ? (isL ? 'You voted for ' : 'Your answer: ') + (c.type === 'text' ? '“' + mine.answer + '”' : mine.answer) + '. You earned ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + '.' : 'Sent ' + this.ago(mine.at) + '. You earned ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + '.') : '',
+      myTitle: isL ? 'Your vote is in.' : 'You already participated.',
       myFile: mine && mine.file ? mine.file : '', myImg: !!(mine && mine.file && c.type === 'image'), myVid: !!(mine && mine.file && c.type === 'video'),
-      cancel: () => mine && this.confirm('Cancel your submission?', 'Your entry for "' + c.title + '" will be removed and the ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + ' you earned will be taken back.', 'cancelSub', mine.id, 'Cancel submission'),
-      showGallery: !!c.ev && !ctx.isOwner && subs.length > 0,
-      gallery: subs.slice().sort((a, b) => b.at - a.at).map(x => this.subView(x, c, me))
+      cancel: () => mine && this.confirm(isL ? 'Take back your vote?' : 'Cancel your submission?', (isL ? 'Your vote in "' : 'Your entry for "') + c.title + '" will be removed and the ' + this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + ' you earned will be taken back.', 'cancelSub', mine.id, isL ? 'Take back vote' : 'Cancel submission'),
+      cancelLabel: isL ? 'Change vote' : 'Cancel submission',
+      showGallery: !!c.ev && !ctx.isOwner && !choice && shown.length > 0,
+      gallery: shown.slice().sort((a, b) => b.at - a.at).map(x => this.subView(x, c, me))
     };
   }
   subView(x, c, me) {
-    const u = this.user(x.uid);
+    const u = this.user(x.uid), dup = x.dup ? this.state.db.subs.find(y => y.id === x.dup) : null;
     return {
-      name: u.name, av: this.av(u), go: () => this.openProfile(u.id), isMe: !!me && x.uid === me.id, when: this.ago(x.at),
-      isMC: c.type === 'mc', isText: c.type === 'text', answer: x.answer, file: x.file || '',
+      name: u.name, av: this.av(u), go: () => this.openProfile(u.id), isMe: !!me && x.uid === me.id, when: this.ago(x.at), at: x.at,
+      isMC: this.isChoice(c), isText: c.type === 'text', answer: x.answer, file: x.file || '',
       ansImg: c.type === 'mc' ? this.optImg(c, (c.options || []).indexOf(x.answer)) : '', hasAnsImg: c.type === 'mc' && !!this.optImg(c, (c.options || []).indexOf(x.answer)),
       hasImg: c.type === 'image' && !!x.file, hasVid: c.type === 'video' && !!x.file, noMedia: this.hasMedia(c) && !x.file,
-      mediaLabel: c.type === 'image' ? 'Photo submission' : 'Video submission', isWinner: c.winner === x.uid
+      mediaLabel: c.type === 'image' ? 'Photo submission' : 'Video submission', isWinner: c.winner === x.uid,
+      isDup: !!x.dup, dupText: 'Duplicate image: exactly the same file as ' + (dup ? this.user(dup.uid).name + '’s entry' : 'an earlier entry') + '.',
+      isPrivate: this.isRestricted(x.uid), privateText: 'Under 13 · hidden from other fans until a parent says OK'
     };
   }
   voteView(x, c, me) {
     const votes = (this.state.db.votes || []).filter(v => v.sid === x.id);
     const up = votes.filter(v => v.v > 0).length, down = votes.filter(v => v.v < 0).length;
     const mine = me ? votes.find(v => v.uid === me.id) : null;
-    const isMine = !!me && x.uid === me.id, canVote = !!me && me.role === 'fan' && !isMine;
+    const isMine = !!me && x.uid === me.id, shut = !this.win(c).open || c.claimed;
+    const canVote = !!me && me.role === 'fan' && !isMine && !this.canManage(c.aid) && !shut;
     const score = up - down;
     return {
-      votable: this.hasMedia(c), score: score, upCount: up, downCount: down,
+      votable: this.votable(c), score: score, upCount: up, downCount: down,
       myUp: !!(mine && mine.v > 0), myDown: !!(mine && mine.v < 0),
       upCls: mine && mine.v > 0 ? 'vbtn up on' : 'vbtn up', downCls: mine && mine.v < 0 ? 'vbtn down on' : 'vbtn down',
       scoreCls: score > 0 ? 'vscore pos' : (score < 0 ? 'vscore neg' : 'vscore'),
-      noVote: !canVote, voteHint: isMine ? 'You can’t vote on your own submission' : (canVote ? '' : 'Fans vote on submissions'),
-      scoreText: (score > 0 ? '+' : '') + score + ' score',
+      noVote: !canVote, voteHint: isMine ? 'You can’t vote on your own submission' : (shut ? 'Voting has closed' : (canVote ? 'Vote: the first vote on each entry earns 1 silver coin' : 'Fans vote on submissions')),
+      scoreText: 'Net score ' + (score > 0 ? '+' : '') + score,
       up: () => canVote && this.vote(x.id, 1), down: () => canVote && this.vote(x.id, -1)
     };
   }
@@ -895,7 +957,7 @@ class Component extends DCLogic {
     return d;
   }
   saveGm() {
-    const m = this.state.modal, me = this.state.me, d = this.gmData(m);
+    const m = this.state.modal, me = this.actor(), d = this.gmData(m);
     if (typeof d === 'string') return this.setM('err', d);
     this.mut(db => {
       db.games = db.games || [];
@@ -1181,22 +1243,27 @@ class Component extends DCLogic {
     const s = this.state, db = s.db, me = db.users[s.me] || null;
     const sc = s.screen;
     const A = sc === 'artist' ? db.users[s.viewing] : null;
-    const scr = { terms: sc === 'terms', search: sc === 'search', auth: sc === 'auth' || (!me && sc !== 'auth'), setup: sc === 'setup' && !!s.setup, genre: sc === 'pickGenre', artists: sc === 'pickArtist', artist: !!A, profile: sc === 'profile' && !!db.users[s.profileId], chat: sc === 'chat' };
+    const pubScr = ['vote', 'stage', 'consent', 'credits'].includes(sc);   // pages that work without logging in
+    const scr = { terms: sc === 'terms', search: sc === 'search', auth: sc === 'auth' || (!me && sc !== 'auth' && !pubScr), setup: sc === 'setup' && !!s.setup, genre: sc === 'pickGenre', artists: sc === 'pickArtist', artist: !!A && !pubScr, profile: sc === 'profile' && !!db.users[s.profileId], chat: sc === 'chat',
+      vote: sc === 'vote', stage: sc === 'stage', consent: sc === 'consent', pcredits: sc === 'credits' };
     if (!me) { scr.terms = scr.search = scr.setup = scr.genre = scr.artists = scr.artist = scr.profile = scr.chat = false; }
-    const isOwner = !!(A && me && A.id === me.id), isFan = !!(A && me && me.role === 'fan'), isVisitor = !!(A && me && !isOwner && !isFan);
-    const ctx = { me: me, isOwner: isOwner, isFan: isFan, isVisitor: isVisitor };
+    // Owner = the creator account itself or one of its managers (e.g. Steve and Nate for St-ate of Jazz)
+    const isOwner = !!(A && me && this.canManage(A.id)), isAccount = !!(A && me && A.id === me.id), isFan = !!(A && me && me.role === 'fan' && !isOwner), isVisitor = !!(A && me && !isOwner && !isFan);
+    const ctx = { me: me, isOwner: isOwner, isAccount: isAccount, isFan: isFan, isVisitor: isVisitor };
 
     // theme: artist page uses artist theme (live preview while owner edits)
     // Artists see their own theme on every screen; anyone on an artist's page sees that artist's theme.
     const meArtist = !!me && me.role === 'artist';
     let themeKey = meArtist ? (me.theme || 'default') : 'default';
     if (A) themeKey = A.theme || 'default';
-    if (meArtist && (!A || isOwner) && s.modal && s.modal.kind === 'edit') themeKey = s.modal.theme;
+    if (meArtist && (!A || isAccount) && s.modal && s.modal.kind === 'edit') themeKey = s.modal.theme;
+    if (pubScr && s.pub) { const pa = sc === 'credits' ? (this.live ? (s.pcNotes || {}).artist : db.users[s.pub.id]) : (this.liveInfo(s.pub.id) || {}).artist; if (pa && pa.theme) themeKey = pa.theme; }
 
     // field handlers
     const val = (fn) => (e) => fn(e.target.value);
     const f = {
       authEmail: val(v => this.setAuth('email', v)), authPassword: val(v => this.setAuth('password', v)), authName: val(v => this.setAuth('name', v)),
+      authDob: val(v => this.setAuth('dob', v)), authParent: val(v => this.setAuth('parent', v)), authInvite: val(v => this.setAuth('invite', v.toUpperCase().replace(/\s+/g, ''))),
       suName: val(v => this.setSu('name', v)), suBio: val(v => this.setSu('bio', v)), suLocation: val(v => this.setSu('location', v)),
       suAvatar: (e) => this.suFile('avatar', e), suVideo: (e) => this.suFile('video', e),
       q: val(v => this.setState({ q: v })), reply: val(v => this.setState({ reply: v })), chatText: val(v => this.setState({ chatText: v })),
@@ -1216,6 +1283,16 @@ class Component extends DCLogic {
     const a = s.auth;
     const auth = Object.assign({}, a, { isLogin: a.mode === 'login', isSignup: a.mode === 'signup', isForgot: a.mode === 'forgot', hasError: !!a.error, hasInfo: !!a.info,
       isFan: a.role === 'fan', isArtist: a.role === 'artist', fanCls: a.role === 'fan' ? 'role on' : 'role', artistCls: a.role === 'artist' ? 'role on' : 'role', signupLabel: 'Sign up as ' + (a.role === 'artist' ? 'an artist' : 'a fan') });
+    {
+      const age = this.ageOf(a.dob), si = s.signupInfo || {}, inviteOnly = this.live ? !!si.inviteOnly : !!(db.flags || {}).inviteOnly;
+      const code = (a.invite || '').trim().toUpperCase(), iv = !this.live && code ? (db.invites || []).find(x => x.code === code) : null;
+      const invArtist = this.live ? (si.code === code ? si.artistName : '') : (iv && db.users[iv.aid] ? db.users[iv.aid].name : '');
+      Object.assign(auth, { dob: a.dob || '', parent: a.parent || '', invite: a.invite || '', maxDob: this.toLocal(Date.now()).slice(0, 10),
+        isKid: age != null && age >= 0 && age < 13, isTeen: age != null && age >= 13 && age < 18,
+        showInvite: inviteOnly || !!a.invite || !!a.showCode, askCode: !inviteOnly && !a.invite && !a.showCode, showCode: () => this.setAuth('showCode', true),
+        inviteLabel: inviteOnly ? 'Invite code' : 'Invite code (optional)', inviteOnly: inviteOnly,
+        hasInvArtist: !!invArtist, invArtistText: invArtist ? 'You\u2019re invited to join ' + invArtist + '. You\u2019ll follow them automatically.' : '' });
+    }
 
     // setup
     let su = {};
@@ -1274,7 +1351,7 @@ class Component extends DCLogic {
     const personRow = (u) => ({ name: u.name, av: this.av(u), role: u.role === 'artist' ? 'ARTIST' : 'FAN',
       sub: u.role === 'artist' ? this.gNames(u) + (u.location ? ' · ' + u.location : '') : (u.location || 'Fan') + ' · ' + this.plural(u.followers.length, 'follower', 'followers'),
       go: () => (u.role === 'artist' ? this.openArtist(u.id) : this.openProfile(u.id)) });
-    const others = Object.values(db.users).filter(u => !me || u.id !== me.id);
+    const others = Object.values(db.users).filter(u => (!me || u.id !== me.id) && !this.hiddenFor(u.id));
     const found = sqv ? others.filter(u => u.name.toLowerCase().includes(sqv)).sort((x, y) => (x.role === y.role ? x.name.localeCompare(y.name) : (x.role === 'artist' ? -1 : 1))).slice(0, 30) : [];
     const srch = {
       q: s.sq || '', setQ: val(v => this.setState({ sq: v })), hasQ: !!sqv, noQ: !sqv,
@@ -1283,7 +1360,7 @@ class Component extends DCLogic {
     };
 
     // artist page
-    let ap = {}, tabs = [], pn = {}, blocks = [], sb = {}, gms = [];
+    let ap = {}, tabs = [], pn = {}, blocks = [], sb = {}, gms = [], prd = {}, cr = { has: false };
     if (A && me) {
       const following = me.following.includes(A.id);
       // wins waiting for this fan on this artist
@@ -1306,9 +1383,14 @@ class Component extends DCLogic {
         socials: this.socials(A), hasSocials: this.socials(A).length > 0,
         video: A.video || '', hasVideo: !!A.video, noVideo: !A.video,
         noVideoText: isOwner ? 'Fans see your welcome video here. Upload one to say hi.' : A.name + ' hasn’t added a welcome video yet.',
-        uploadVideo: (e) => { const fl = e.target.files && e.target.files[0]; if (!fl) return; const url = URL.createObjectURL(fl); this.mut(db2 => { db2.users[A.id].video = url; }); }
+        uploadVideo: (e) => { const fl = e.target.files && e.target.files[0]; if (!fl) return; const url = URL.createObjectURL(fl); this.mut(db2 => { db2.users[A.id].video = url; }); },
+        isAccount: isAccount, isManager: isOwner && !isAccount, managerText: 'You\u2019re managing ' + A.name + ' as ' + me.name + '. Everything you post here appears as ' + A.name + '.',
+        hasBanner: !!A.banner, bannerStyle: A.banner ? 'background-image: url("' + A.banner + '")' : '',
+        showSurvey: isFan && !!A.survey && !this.surveyDismissed(A.id), surveyUrl: A.survey || '', dismissSurvey: () => this.dismissSurvey(A.id),
+        restricted: !!me.restricted, restrictedText: 'Your parent or guardian hasn\u2019t said OK yet. You can take part, but your entries stay private (only you and ' + A.name + '\u2019s producers can see them) until they do.',
+        myBadge: isFan ? ((db.badges || []).find(b => b.uid === me.id && b.aid === A.id) || {}).label || '' : '', hasMyBadge: isFan && (db.badges || []).some(b => b.uid === me.id && b.aid === A.id)
       };
-      tabs = [['challenges', 'Challenges'], ['showday', 'Showday'], ['lottery', 'Lottery'], ['community', 'Community', 'Lounge'], ['games', 'Games'], ['scoreboard', 'Scoreboard', 'Scores']].map(t => ({ label: t[1], short: t[2] || t[1], ['is_' + t[0]]: true, on: s.tab === t[0], cls: s.tab === t[0] ? 'tab on' : 'tab', pick: () => this.pickTab(t[0]) }));
+      tabs = [['challenges', 'Challenges'], ['showday', 'Showday'], ['lottery', 'Lottery'], ['community', 'Community', 'Lounge'], ['games', 'Games'], ['scoreboard', 'Scoreboard', 'Scores'], isOwner ? ['producer', 'Producer', 'Producer'] : ['credits', 'Credits', 'Credits']].map(t => ({ label: t[1], short: t[2] || t[1], ['is_' + t[0]]: true, on: s.tab === t[0], cls: s.tab === t[0] ? 'tab on' : 'tab', pick: () => this.pickTab(t[0]) }));
       const chs = db.challenges.filter(c => c.aid === A.id).sort((x, y) => y.at - x.at);
       const T = s.tab;
       if (T === 'challenges') chs.filter(c => !c.ev).forEach(c => { const it = this.chItem(c, ctx); if (it) blocks.push(it); });
@@ -1328,7 +1410,9 @@ class Component extends DCLogic {
         lottery: { heading: isOwner ? 'Your Lotteries' : 'Lottery', createLabel: 'Create Lottery', create: () => this.openLtModal(null), emptyTitle: 'No lotteries yet', emptyText: isOwner ? 'Offer an experience, like dinner with the cast, and set how many tickets each entry costs and how many winners there are.' : 'No lotteries open right now.' }
       }[T] || {};
       const hint = T === 'lottery' && isFan ? 'You have ' + this.plural(me.tickets, 'ticket', 'tickets') + '. Enter as many times as your tickets allow. More entries, better odds.' : (T === 'challenges' && isFan ? 'Tap a challenge to see the details and take part. Every submission earns its coin reward.' : (T === 'showday' && isFan ? 'Challenges to do on the day of the show. You can see what other fans submitted too.' : (T === 'games' && isFan ? 'Play as often as you like. Win a game and ' + A.name + ' can pick you for its prize.' : '')));
-      pn = Object.assign({ isList: ['challenges', 'showday', 'lottery'].includes(T), isScore: T === 'scoreboard', isGames: T === 'games', canCreate: isOwner, empty: T === 'games' ? gms.length === 0 : blocks.length === 0, hint: hint, hasHint: !!hint }, P);
+      pn = Object.assign({ isList: ['challenges', 'showday', 'lottery'].includes(T), isScore: T === 'scoreboard', isGames: T === 'games', isProducer: T === 'producer' && isOwner, isCredits: T === 'credits' || (T === 'producer' && !isOwner), canCreate: isOwner, empty: T === 'games' ? gms.length === 0 : blocks.length === 0, hint: hint, hasHint: !!hint }, P);
+      if (pn.isProducer) prd = this.producerVals(A, me);
+      if (pn.isCredits) cr = this.creditsView(this.linerNotes(A.id), true);
 
       // scoreboard
       if (T === 'scoreboard') {
@@ -1338,8 +1422,8 @@ class Component extends DCLogic {
         sb = {
           cat: cat, setCat: val(v => this.setState({ sb: { cat: v, sel: '' } })), empty: list.length === 0,
           emptyText: cat === 'game' ? 'No games have been created yet.' : cat === 'lottery' ? 'No lotteries have been created yet.' : (cat === 'showday' ? 'No Showday challenges yet.' : 'No challenges yet.'),
-          items: list.map(x => { const n = cat === 'game' ? (db.gplays || []).filter(y => y.gid === x.id && y.won).length : cat === 'lottery' ? db.entries.filter(e => e.lid === x.id).reduce((p, q) => p + q.n, 0) : db.subs.filter(y => y.cid === x.id).length; const on = sel && sel.id === x.id; return { title: x.title, meta: cat === 'game' ? this.plural(n, 'winner', 'winners') : this.plural(n, cat === 'lottery' ? 'entry' : 'submission', cat === 'lottery' ? 'entries' : 'submissions'), on: !!on, cls: on ? 'sbi on' : 'sbi', pick: () => this.setState({ sb: { cat: cat, sel: x.id } }) }; }),
-          hasSel: !!sel, rows: [], canDraw: false
+          items: list.map(x => { const ch = cat === 'challenge' || cat === 'showday', choice = ch && this.isChoice(x); const n = cat === 'game' ? (db.gplays || []).filter(y => y.gid === x.id && y.won).length : cat === 'lottery' ? db.entries.filter(e => e.lid === x.id).reduce((p, q) => p + q.n, 0) : (choice ? this.tally(x).total : db.subs.filter(y => y.cid === x.id && !this.hiddenFor(y.uid, x.aid)).length); const on = sel && sel.id === x.id; return { title: x.title, meta: cat === 'game' ? this.plural(n, 'winner', 'winners') : (choice ? this.plural(n, 'vote', 'votes') : this.plural(n, cat === 'lottery' ? 'entry' : 'submission', cat === 'lottery' ? 'entries' : 'submissions')), on: !!on, cls: on ? 'sbi on' : 'sbi', pick: () => this.setState({ sb: { cat: cat, sel: x.id, sort: s.sb.sort } }) }; }),
+          hasSel: !!sel, rows: [], canDraw: false, showStatus: true
         };
         if (sel && cat === 'game') {
           const g = sel, info = this.prizeInfo(g), lb = this.lowerBetter(g);
@@ -1358,16 +1442,37 @@ class Component extends DCLogic {
           });
         }
         if (sel && cat !== 'lottery' && cat !== 'game') {
-          const c = sel, subs = db.subs.filter(x => x.cid === c.id).sort((x, y) => y.at - x.at), w = c.winner ? this.user(c.winner) : null;
-          const ev = c.ev ? db.events.find(e => e.id === c.ev) : null;
+          const c = sel, subs = db.subs.filter(x => x.cid === c.id && !this.hiddenFor(x.uid, c.aid)).sort((x, y) => y.at - x.at), w = c.winner ? this.user(c.winner) : null;
+          const ev = c.ev ? db.events.find(e => e.id === c.ev) : null, choice = this.isChoice(c), vt = this.votable(c), wn = this.win(c);
+          const elect = c.type !== 'mc';   // listen, text, image, video: "Elect winner"
+          if (wn.tick) this.needTick();
           Object.assign(sb, {
-            title: c.title, meta: (ev ? ev.title + ' · ' : '') + this.typeName(c.type) + ' · +' + c.rw + ' ' + c.rt + ' per entry · ' + this.plural(subs.length, 'submission', 'submissions'),
-            status: w ? (c.claimed ? 'Winner: ' + w.name + ' (prize claimed, can no longer be changed)' : 'Winner: ' + w.name + ' (not claimed yet, you can still change it)') : (isOwner ? 'No winner yet. Pick one from the submissions below. They get 1 green coin.' : 'No winner picked yet.'),
-            statusCls: w ? 'note ok' : 'note', noRows: subs.length === 0, noRowsText: 'No submissions yet.',
-            rows: subs.map(x => { const v = Object.assign(this.subView(x, c, me), this.voteView(x, c, me)); const isW = c.winner === x.uid; return Object.assign(v, { isEntry: false, cls: isW ? 'sub win' : 'sub', winLabel: c.claimed ? 'Winner · claimed' : 'Winner', canPick: isOwner && !c.claimed && !isW, pickLabel: c.winner ? 'Make winner instead' : 'Select as the winner', pick: () => this.pickWinner(c.id, x.uid), canUnpick: isOwner && isW && !c.claimed, unpick: () => this.unpickWinner(c.id) }); })
+            title: c.title, meta: (ev ? ev.title + ' · ' : '') + this.typeName(c.type) + ' · +' + c.rw + ' ' + c.rt + ' per entry · ' + (choice ? this.tally(c).totalText : this.plural(subs.length, 'submission', 'submissions')),
+            status: w ? (c.claimed ? 'Winner: ' + w.name + ' (prize claimed, can no longer be changed)' : 'Winner: ' + w.name + ' (not claimed yet, you can still change it)') : (isOwner ? (vt ? 'No winner yet. Elect one from the entries below. They get 1 green coin.' : 'No winner yet. Pick one from the submissions below. They get 1 green coin.') : 'No winner picked yet.'),
+            statusCls: w ? 'note ok' : 'note', noRows: subs.length === 0, noRowsText: choice ? 'No votes from logged-in fans yet.' : 'No submissions yet.',
+            showStatus: !choice || c.type === 'mc' || !!w, hasWin: !!wn.text, winText: wn.text, winCls: wn.cls, winWhen: this.windowText(c), hasWinWhen: !!this.windowText(c) && !c.elected,
+            rows: subs.map(x => { const v = Object.assign(this.subView(x, c, me), this.voteView(x, c, me)); const isW = c.winner === x.uid; return Object.assign(v, { isEntry: false, cls: isW ? 'sub win' : (v.isDup && isOwner ? 'sub dup' : 'sub'), winLabel: c.claimed ? 'Winner · claimed' : 'Winner', showDup: v.isDup && isOwner, showPrivate: v.isPrivate && isOwner,
+              canPick: isOwner && !c.claimed && !isW && c.type !== 'listen', pickLabel: elect ? (c.winner ? 'Elect instead' : 'Elect winner') : (c.winner ? 'Make winner instead' : 'Select as the winner'), pick: () => this.pickWinner(c.id, x.uid), canUnpick: isOwner && isW && !c.claimed, unpick: () => this.unpickWinner(c.id) }); })
           });
-          // Image and video entries: most popular first, so the artist sees what fans like
-          if (this.hasMedia(c)) sb.rows.sort((p, q) => q.score - p.score);
+          if (choice) {
+            const t = this.tally(c);
+            Object.assign(sb, { isChoice: true, tally: t.rows.map(r => Object.assign(r, { canElect: isOwner && !c.elected, elect: () => this.confirmElect(c.id, r.label) })), tallyText: t.totalText,
+              liveTag: wn.open && !c.elected, hasElected: !!c.elected, electedText: c.elected ? '“' + c.elected + '” was elected ' + this.ago(c.electedAt || Date.now()) + '. The result is locked.' : '',
+              electHint: isOwner && !c.elected ? 'Votes update live. When you\u2019re ready, tap Elect winner on an option. That locks the vote and tells everyone who voted.' : '',
+              canQr: isOwner && !c.elected, qr: () => this.openQr(c.id), stage: () => { try { window.open(this.pubUrl('stage', c.id), '_blank', 'noopener'); } catch (e) {} }, guestOn: !!c.guest,
+              rowsTitle: 'Votes from logged-in fans' });
+          }
+          if (vt) {
+            const sort = s.sb.sort === 'new' ? 'new' : 'score';
+            const ranked = sb.rows.slice().sort((p, q) => q.score - p.score || p.at - q.at);
+            if (sort === 'score') sb.rows = ranked;
+            const top = ranked.filter(r => !r.showPrivate && !r.isDup).slice(0, 5);   // exact duplicates and hidden entries stay off the shortlist
+            Object.assign(sb, { isVotable: true, sort: sort, setSort: val(v => this.setState({ sb: Object.assign({}, this.state.sb, { sort: v }) })), hasTop: top.length > 0,
+              top5: top.map((r, i) => ({ rank: i + 1, name: r.name, av: r.av, go: r.go, answer: r.answer, isText: c.type === 'text', notText: c.type !== 'text', file: r.file, hasImg: r.hasImg, hasVid: r.hasVid, scoreText: (r.score > 0 ? '+' : '') + r.score, scoreCls: r.scoreCls, isWinner: r.isWinner })),
+              topTitle: top.length < 5 ? 'Top ' + top.length + ' so far' : 'Top 5 shortlist', voteNote: me && me.role === 'fan' && !isOwner ? 'Vote up or down on other fans\u2019 entries. Your first vote on each entry earns 1 silver coin.' : 'Ranked by net score (up votes minus down votes).',
+              dupCount: isOwner ? subs.filter(x => x.dup).length : 0 });
+            sb.hasDups = sb.dupCount > 0; sb.dupText = this.plural(sb.dupCount, 'entry is', 'entries are') + ' an exact copy of an earlier image. They\u2019re marked below.';
+          }
         }
         if (sel && cat === 'lottery') {
           const l = sel, ents = db.entries.filter(e => e.lid === l.id).sort((x, y) => y.n - x.n), total = ents.reduce((p, q) => p + q.n, 0);
@@ -1388,19 +1493,19 @@ class Component extends DCLogic {
     let cm = { show: cmShow };
     if (cmShow) {
       const q = s.q.trim().toLowerCase();
-      const results = q ? Object.values(db.users).filter(u => u.name.toLowerCase().includes(q)).slice(0, 12).map(u => ({ name: u.name, av: this.av(u), sub: (u.role === 'artist' ? 'Artist · ' + this.gNames(u) : 'Fan') + (u.location ? ' · ' + u.location : ''), go: () => this.openProfile(u.id) })) : [];
+      const results = q ? Object.values(db.users).filter(u => u.name.toLowerCase().includes(q) && !this.hiddenFor(u.id)).slice(0, 12).map(u => ({ name: u.name, av: this.av(u), sub: (u.role === 'artist' ? 'Artist · ' + this.gNames(u) : 'Fan') + (u.location ? ' · ' + u.location : ''), go: () => this.openProfile(u.id) })) : [];
       const d = s.forumDraft;
       cm = {
         show: true, wrapCls: sc === 'community' ? 'wrap page' : 'wrap panel cmtab', hCls: sc === 'community' ? 'h1' : 'h2',
         hasQ: !!q, results: results, noResults: !!q && results.length === 0,
         drafting: !!d, d: d || {}, hasErr: !!(d && d.err),
         newTopic: () => this.setState({ forumDraft: { title: '', body: '', err: '' } }), cancel: () => this.setState({ forumDraft: null }), post: (e) => this.postTopic(e),
-        threads: db.forums.slice().sort((x, y) => y.at - x.at).map(t => {
+        threads: db.forums.filter(t => !this.hiddenFor(t.uid)).sort((x, y) => y.at - x.at).map(t => {
           const u = this.user(t.uid), open = s.forumOpen === t.id;
           return { title: t.title, body: t.body || '', open: open, boxCls: open ? 'blk open' : 'blk', chevCls: open ? 'i chev up' : 'i chev', toggle: () => this.setState({ forumOpen: open ? null : t.id, reply: '' }),
             author: u.name, av: this.av(u), role: u.role === 'artist' ? 'ARTIST' : 'FAN', when: this.ago(t.at), goAuthor: () => this.openProfile(u.id),
             replyCount: this.plural(t.replies.length, 'reply', 'replies'), send: (e) => this.sendReply(t.id, e),
-            replies: t.replies.map(r => { const ru = this.user(r.uid); return { name: ru.name, av: this.av(ru), role: ru.role === 'artist' ? 'ARTIST' : 'FAN', text: r.text, when: this.ago(r.at), go: () => this.openProfile(ru.id) }; }) };
+            replies: t.replies.filter(r => !this.hiddenFor(r.uid)).map(r => { const ru = this.user(r.uid); return { name: ru.name, av: this.av(ru), role: ru.role === 'artist' ? 'ARTIST' : 'FAN', text: r.text, when: this.ago(r.at), go: () => this.openProfile(ru.id) }; }) };
         })
       };
     }
@@ -1430,6 +1535,14 @@ class Component extends DCLogic {
         openPage: () => this.openArtist(P.id), avatarMenu: () => this.setState({ modal: { kind: 'me', title: 'Profile options' } }),
         acts: acts.slice(0, 10).map(x => ({ text: x.text, sub: x.sub + ' · ' + this.ago(x.at), go: x.go })), noActs: acts.length === 0
       };
+      const priv = this.hiddenFor(P.id);
+      const badges = (db.badges || []).filter(b => b.uid === P.id && db.users[b.aid]).map(b => ({ label: b.label, artist: db.users[b.aid].name, when: 'Awarded ' + this.ago(b.at), go: () => this.openArtist(b.aid, 'credits') }));
+      const manages = this.managedBy(P.id).map(id => ({ name: db.users[id].name, go: () => this.openArtist(id, isMe ? 'producer' : 'challenges') }));
+      Object.assign(pf, { isPrivate: priv, notPrivate: !priv, badges: badges, hasBadges: badges.length > 0 && !priv, manages: manages, hasManages: manages.length > 0,
+        waitingConsent: isMe && !!P.restricted, waitingText: 'We\u2019ve asked your parent or guardian' + (P.parentEmail ? ' (' + P.parentEmail + ')' : '') + ' to say it\u2019s OK for you to use Collabz. Until they do, your entries, topics and replies are only visible to you and the creators\u2019 producers, and messages are switched off.',
+        isAdmin: isMe && this.isAdmin(P.id), pending: isMe && this.isAdmin(P.id) ? this.pendingConsents() : [] });
+      pf.noPending = pf.pending.length === 0;
+      if (priv) Object.assign(pf, { hasBio: false, hasLoc: false, hasSocials: false, acts: [], noActs: false });
     }
 
     // chat
@@ -1463,9 +1576,16 @@ class Component extends DCLogic {
         okCls: (k === 'confirm' || k === 'delete') ? 'btn danger' : 'btn grad', okDisabled: k === 'delete' && M.stage === 2 && (M.typed || '').trim() !== 'DELETE'
       });
       if (k === 'ch') Object.assign(md, {
-        title: M.id ? 'Edit challenge' : (M.ev ? 'Add Showday challenge' : 'Create challenge'), okLabel: M.id ? 'Save changes' : 'Create challenge', ok: () => this.saveCh(), isMCType: M.type === 'mc', isTextType: M.type === 'text',
-        isCreate: M.type !== 'mc',
-        groups: [['choose', 'CHOOSE', 'Fans pick an answer'], ['create', 'CREATE', 'Fans make something']].map(g => { const on = (g[0] === 'choose') === (M.type === 'mc'); return { label: g[1], sub: g[2], on: on, cls: on ? 'on' : '', pick: () => { if (on) return; if (g[0] === 'choose') this.setState({ modal: Object.assign({}, this.state.modal, { type: 'mc', lastCreate: M.type, err: '' }) }); else this.setM('type', M.lastCreate || 'image'); } }; }),
+        title: M.id ? 'Edit challenge' : (M.ev ? 'Add Showday challenge' : 'Create challenge'), okLabel: M.id ? 'Save changes' : 'Create challenge', ok: () => this.saveCh(), isMCType: M.type === 'mc', isTextType: M.type === 'text', isListenType: M.type === 'listen',
+        isCreate: M.type !== 'mc' && M.type !== 'listen', isChooseType: M.type === 'mc' || M.type === 'listen',
+        groups: [['choose', 'CHOOSE', 'Fans pick an answer'], ['create', 'CREATE', 'Fans make something']].map(g => { const ch = M.type === 'mc' || M.type === 'listen', on = (g[0] === 'choose') === ch; return { label: g[1], sub: g[2], on: on, cls: on ? 'on' : '', pick: () => { if (on) return; if (g[0] === 'choose') this.setState({ modal: Object.assign({}, this.state.modal, { type: M.lastChoose || 'mc', lastCreate: M.type, err: '' }) }); else this.setState({ modal: Object.assign({}, this.state.modal, { type: M.lastCreate || 'image', lastChoose: M.type, err: '' }) }); } }; }),
+        chooseKinds: [['mc', 'Answers', 'Text or picture options'], ['listen', 'Audio clips', 'Listen and vote']].map(t => ({ label: t[1], sub: t[2], on: M.type === t[0], cls: M.type === t[0] ? 'on' : '', pick: () => this.setState({ modal: Object.assign({}, this.state.modal, { type: t[0], lastChoose: t[0], err: '' }) }) })),
+        aopts: [0, 1, 2, 3].map(i => ({ letter: 'ABCD'[i], ph: 'Take ' + 'ABCD'[i], val: M['o' + i] || '', set: val(v => this.setM('o' + i, v)), audio: M['a' + i] || '', hasAudio: !!M['a' + i], noAudio: !M['a' + i], name: M['an' + i] || 'Audio clip',
+          onAudio: (e) => this.mAudio(i, e), clear: () => this.setState({ modal: Object.assign({}, this.state.modal, { ['a' + i]: '', ['an' + i]: '', err: '' }) }) })),
+        opens: M.opens || '', closes: M.closes || '', setOpens: val(v => this.setM('opens', v)), setCloses: val(v => this.setM('closes', v)),
+        quick: [['1 hour', 1], ['3 hours', 3], ['24 hours', 24], ['3 days', 72], ['No limit', 0]].map(q => ({ label: q[1] ? 'Next ' + q[0] : q[0], pick: () => this.setState({ modal: Object.assign({}, this.state.modal, q[1] ? { opens: this.toLocal(Date.now()), closes: this.toLocal(Date.now() + q[1] * 3600000), err: '' } : { opens: '', closes: '', err: '' }) }) })),
+        windowHint: M.opens || M.closes ? 'Fans can only take part ' + (M.opens ? 'from ' + this.fmtWhen(this.fromLocal(M.opens) || Date.now()) : 'now') + (M.closes ? ' until ' + this.fmtWhen(this.fromLocal(M.closes) || Date.now()) : '') + '. A countdown shows on the challenge, and it closes by itself.' : 'Leave empty to keep it open until you elect a winner.',
+        guest: !!M.guest, setGuest: (e) => this.setM('guest', !!e.target.checked),
         types: [['text', 'Text'], ['image', 'Image'], ['video', 'Video']].map(t => ({ label: t[1], on: M.type === t[0], cls: M.type === t[0] ? 'on' : '', pick: () => this.setM('type', t[0]) })),
         hasThumb: !!M.thumb, noThumb: !M.thumb, thumbLabel: M.thumb ? 'Change thumbnail' : 'Upload thumbnail', onThumb: (e) => this.mFile('thumb', e), clearThumb: () => this.setM('thumb', ''),
         opts: [0, 1, 2, 3].map(i => ({ ph: 'Option ' + 'ABCD'[i], letter: 'ABCD'[i], val: M['o' + i] || '', set: val(v => this.setM('o' + i, v)), img: M['i' + i] || '', hasImg: !!M['i' + i], noImg: !M['i' + i], onImg: (e) => this.mFile('i' + i, e), clearImg: () => this.setM('i' + i, '') })),
@@ -1494,6 +1614,12 @@ class Component extends DCLogic {
           paLabel: M.pt === 'tickets' ? 'Tickets per winner' : 'Coins per winner'
         });
       }
+      if (k === 'qr') {
+        const c = db.challenges.find(x => x.id === M.cid) || { title: '', guest: false, id: M.cid }, url = this.pubUrl('vote', M.cid), img = this.qrImg(url, 8);
+        Object.assign(md, { title: 'QR code for this vote', isQr: true, qrImg: img, qrUrl: url, qrTitle: c.title, qrFile: 'collabz-vote-qr.gif',
+          qrNote: c.guest ? 'Anyone can scan and vote without signing up (one vote per phone).' : 'People need to log in to Collabz to vote. To let the audience vote without signing up, edit the challenge and turn on quick QR voting.',
+          copy: () => this.copyText(url, 'Vote link copied.'), openStage: () => { try { window.open(this.pubUrl('stage', M.cid), '_blank', 'noopener'); } catch (e) {} } });
+      }
       if (k === 'ev') Object.assign(md, { title: M.id ? 'Edit event' : 'Create Showday event', okLabel: M.id ? 'Save changes' : 'Create event', ok: () => this.saveEv() });
       if (k === 'lt') Object.assign(md, { title: M.id ? 'Edit lottery' : 'Create lottery', okLabel: M.id ? 'Save changes' : 'Create lottery', ok: () => this.saveLt() });
       if (k === 'confirm') Object.assign(md, { title: M.title, okLabel: M.okLabel, ok: () => this.doConfirm() });
@@ -1506,7 +1632,8 @@ class Component extends DCLogic {
         genreCount: (M.genres || []).length + ' of 3', videoLabel: M.video ? (M.videoName ? 'Chosen: ' + M.videoName : 'Replace welcome video') : 'Upload a welcome video',
         themes: Object.entries(this.themes()).map(([key, t]) => ({ name: t.name, kind: t.kind, a1: t.a1, a2: t.a2, style: 'background: ' + t.bg, on: M.theme === key, cls: M.theme === key ? 'sw on' : 'sw', pick: () => this.setM('theme', key) })),
         socials: this.socialDefs().map(x => ({ label: x[1], ph: x[1] + ' link', val: M[x[0]] || '', set: val(v => this.setM(x[0], v)) })),
-        askDelete: () => this.setState({ modal: { kind: 'delete', stage: 1, typed: '', err: '', backTo: M } })
+        askDelete: () => this.setState({ modal: { kind: 'delete', stage: 1, typed: '', err: '', backTo: M } }),
+        hasBanner: !!M.banner, noBanner: !M.banner, bannerStyle: M.banner ? 'background-image: url("' + M.banner + '")' : '', bannerFile: (e) => this.mFile('banner', e), clearBanner: () => this.setM('banner', ''), bannerLabel: M.banner ? 'Change banner' : 'Upload banner'
       });
       if (k === 'delete') Object.assign(md, M.stage === 2
         ? { title: 'Delete your account', okLabel: 'Delete forever', ok: () => this.deleteAccount(), cancelLabel: 'Keep my account' }
@@ -1520,10 +1647,11 @@ class Component extends DCLogic {
     const lp = s.lvpop && !s.pop ? Object.assign({ show: true }, s.lvpop) : { show: false, bits: [] };
 
     return {
-      themeStyle: this.themeCss(themeKey), showHeader: !!me && !scr.auth && !scr.setup && !scr.terms, scr: scr, hdr: hdr, f: f, mf: mf, auth: auth, su: su,
+      themeStyle: this.themeCss(themeKey), showHeader: !!me && !scr.auth && !scr.setup && !scr.terms && !pubScr, scr: scr, prd: prd, cr: cr, tabsCls: tabs.length > 6 ? 'tabs n7' : 'tabs',
+      vt: scr.vote ? this.voteVals() : { show: false }, stg: scr.stage ? this.stageVals() : { show: false }, cs: scr.consent ? this.consentVals() : { show: false }, pc: scr.pcredits ? this.publicCreditsVals() : { has: false }, hdr: hdr, f: f, mf: mf, auth: auth, su: su,
       genreCards: genreCards, gp: gp, ex: ex, srch: srch, tm: tm, ap: ap, tabs: tabs, pn: pn, blocks: blocks, gms: gms, pl: me ? this.playView(me) : { show: false }, sb: sb, cm: cm, pf: pf, ch: ch, md: md, pp: pp, lp: lp,
       q: s.q, reply: s.reply, chatText: s.chatText,
-      nav: { canBack: !!me && !scr.auth && !scr.setup && !scr.terms && (s.hist || []).length > 0, back: () => this.back() },
+      nav: { canBack: !!me && !scr.auth && !scr.setup && !scr.terms && !pubScr && (s.hist || []).length > 0, back: () => this.back() },
       goHome: () => this.home(), goExplore: () => this.go('pickGenre'), goSearch: () => this.go('search'), goCommunity: () => this.go('community'),
       goChat: () => { const meId = s.me; const mine = db.msgs.filter(m => m.from === meId || m.to === meId).sort((x, y) => y.at - x.at); const o = mine[0] ? (mine[0].from === meId ? mine[0].to : mine[0].from) : null; this.openChat(o); },
       goMyProfile: () => me && this.openProfile(me.id),
@@ -1531,7 +1659,7 @@ class Component extends DCLogic {
       openEdit: () => this.openEdit(), logout: () => this.logout(),
       closeModal: () => this.setState({ modal: null }), stop: (e) => e.stopPropagation(),
       toForgot: () => this.setState({ auth: Object.assign(this.blankAuth('forgot'), { email: s.auth.email }) }),
-      toSignup: () => this.setState({ auth: this.blankAuth('signup', s.auth.role) }), toLogin: () => this.setState({ auth: this.blankAuth('login') }),
+      toSignup: () => this.setState({ auth: Object.assign(this.blankAuth('signup', s.auth.role), { invite: s.auth.invite || s.inviteCode || '' }) }), toLogin: () => this.setState({ auth: this.blankAuth('login') }),
       roleFan: () => this.setState({ auth: Object.assign({}, s.auth, { role: 'fan', error: '' }) }), roleArtist: () => this.setState({ auth: Object.assign({}, s.auth, { role: 'artist', error: '' }) }),
       doLogin: (e) => this.doLogin(e), doSignup: (e) => this.doSignup(e), doForgot: (e) => this.doForgot(e),
       demoFan: () => this.enter('f1'), demoArtist: () => this.enter('a2'),

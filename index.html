@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20261024a">
+<link rel="stylesheet" href="css/styles.css?v=20261103a">
 </head>
 <body>
 <div id="root"></div>
@@ -76,6 +76,11 @@
 <div class="fld"><label for="sn">Full name</label><input id="sn" class="in" autocomplete="name" placeholder="Your name" value="{{auth.name}}" onChange="{{f.authName}}"></div>
 <div class="fld"><label for="se">Email</label><input id="se" class="in" type="email" autocomplete="email" placeholder="you@example.com" value="{{auth.email}}" onChange="{{f.authEmail}}"></div>
 <div class="fld"><label for="sp">Password</label><input id="sp" class="in" type="password" autocomplete="new-password" placeholder="At least 6 characters" value="{{auth.password}}" onChange="{{f.authPassword}}"></div>
+<div class="fld"><label for="sd">Date of birth</label><input id="sd" class="in" type="date" max="{{auth.maxDob}}" autocomplete="bday" value="{{auth.dob}}" onChange="{{f.authDob}}"><span class="muted sm">Everyone is asked. It isn’t shown on your profile.</span></div>
+<sc-if value="{{auth.isKid}}" hint-placeholder-val="{{ false }}"><div class="fld kidbox"><label for="spe">Parent or guardian’s email</label><input id="spe" class="in" type="email" autocomplete="off" placeholder="parent@example.com" value="{{auth.parent}}" onChange="{{f.authParent}}"><span class="muted sm">You’re under 13, so we’ll ask them to say it’s OK. Until they do, your entries stay private and messages are off.</span></div></sc-if>
+<sc-if value="{{auth.isTeen}}" hint-placeholder-val="{{ false }}"><p class="muted sm">You’re under 18, so please check a parent or guardian is happy for you to join.</p></sc-if>
+<sc-if value="{{auth.showInvite}}" hint-placeholder-val="{{ false }}"><div class="fld"><label for="sic">{{auth.inviteLabel}}</label><input id="sic" class="in code" autocomplete="off" autocapitalize="characters" placeholder="e.g. JAZZA30" value="{{auth.invite}}" onChange="{{f.authInvite}}"><sc-if value="{{auth.hasInvArtist}}" hint-placeholder-val="{{ false }}"><span class="info sm">{{auth.invArtistText}}</span></sc-if></div></sc-if>
+<sc-if value="{{auth.askCode}}" hint-placeholder-val="{{ false }}"><p class="sm" style="margin-top: -6px"><button type="button" class="lnk sm" onClick="{{auth.showCode}}">Have an invite code?</button></p></sc-if>
 <sc-if value="{{auth.hasError}}" hint-placeholder-val="{{ false }}"><p class="err" role="alert">{{auth.error}}</p></sc-if>
 <sc-if value="{{auth.hasInfo}}" hint-placeholder-val="{{ false }}"><p class="info" role="status">{{auth.info}}</p></sc-if>
 <button class="btn grad full" type="submit">{{auth.signupLabel}}</button>
@@ -274,6 +279,7 @@
 <button type="button" class="avbtn" onClick="{{ap.goMe}}" aria-label="Your profile"><span class="av a56" style="background: {{ap.meAv.bg}}"><sc-if value="{{ap.meAv.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{ap.meAv.img}}" alt=""></sc-if><sc-if value="{{ap.meAv.noImg}}" hint-placeholder-val="{{ true }}">{{ap.meAv.ini}}</sc-if></span></button>
 <div class="grow">
 <h2 class="h3"><button type="button" class="lnk plain" onClick="{{ap.goMe}}" style="font: inherit">{{ap.meName}}</button></h2>
+<sc-if value="{{ap.hasMyBadge}}" hint-placeholder-val="{{ false }}"><span class="badgechip"><svg class="medal" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h4l1 5-3 2zM17 2h-4l-1 5 3 2z" fill="#8b5cf6"></path><circle cx="12" cy="15" r="6.5" fill="#f5b942" stroke="#b7791f" stroke-width="1.2"></circle><path d="m12 11.6 1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z" fill="#fff8e1"></path></svg>{{ap.myBadge}}</span></sc-if>
 <sc-if value="{{ap.hasLv}}" hint-placeholder-val="{{ false }}">
 <button type="button" class="lvl" onClick="{{ap.goMe}}" aria-label="{{ap.lv.label}}, {{ap.lv.progressText}}">
 <img class="lvlicon" src="{{ap.lv.icon}}" alt="">
@@ -299,6 +305,12 @@
 </section>
 </sc-if>
 
+<sc-if value="{{ap.restricted}}" hint-placeholder-val="{{ false }}"><p class="note warn" role="status">{{ap.restrictedText}}</p></sc-if>
+<sc-if value="{{ap.showSurvey}}" hint-placeholder-val="{{ false }}">
+<section class="note survey" aria-label="Feedback survey"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"></path><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 12l2 2 4-4"></path></svg><div class="grow"><p><strong>How did it go? Tell {{ap.name}}</strong></p><p class="muted sm">5 quick questions, about 2 minutes.</p></div><a class="btn grad sm" href="{{ap.surveyUrl}}" target="_blank" rel="noopener noreferrer">Take the survey</a><button type="button" class="ib sm" onClick="{{ap.dismissSurvey}}" aria-label="Hide the survey card"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></section>
+</sc-if>
+<sc-if value="{{ap.isManager}}" hint-placeholder-val="{{ false }}"><p class="note mgr" role="status"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg><span>{{ap.managerText}}</span></p></sc-if>
+<sc-if value="{{ap.hasBanner}}" hint-placeholder-val="{{ false }}"><div class="banner" style="{{ap.bannerStyle}}" role="img" aria-label="{{ap.name}} banner"></div></sc-if>
 <section class="card prof">
 <button type="button" class="bigimg" style="background: {{ap.av.bg}}" onClick="{{ap.goProfile}}" aria-label="Open {{ap.name}}'s profile"><sc-if value="{{ap.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{ap.av.img}}" alt=""></sc-if><sc-if value="{{ap.av.noImg}}" hint-placeholder-val="{{ true }}">{{ap.av.ini}}</sc-if></button>
 <div class="profinfo">
@@ -307,7 +319,7 @@
 <sc-if value="{{ap.hasLoc}}" hint-placeholder-val="{{ false }}"><p class="iline muted"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>{{ap.location}}</p></sc-if>
 <sc-if value="{{ap.hasBio}}" hint-placeholder-val="{{ false }}"><p>{{ap.bio}}</p></sc-if>
 <div class="follows"><button type="button" class="fbtn" onClick="{{ap.showFollowers}}"><strong>{{ap.followers}}</strong> followers</button><button type="button" class="fbtn" onClick="{{ap.showFollowing}}"><strong>{{ap.following}}</strong> following</button></div>
-<sc-if value="{{ap.isOwner}}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ap.isAccount}}" hint-placeholder-val="{{ false }}">
 <div class="coins" aria-label="Your balance" style="margin-top: 4px">
 <span class="coin" title="Silver coins"><img src="assets/coin-silver.png" alt="Silver coins">{{ap.coins.silver}}</span>
 <span class="coin" title="Gold coins"><img src="assets/coin-gold.png" alt="Gold coins">{{ap.coins.gold}}</span>
@@ -316,7 +328,7 @@
 </div>
 </sc-if>
 <div class="acts" style="margin-top: 4px">
-<sc-if value="{{ap.isOwner}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn grad" onClick="{{openEdit}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>Edit profile &amp; theme</button></sc-if>
+<sc-if value="{{ap.isAccount}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn grad" onClick="{{openEdit}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>Edit profile &amp; theme</button></sc-if>
 <sc-if value="{{ap.notOwner}}" hint-placeholder-val="{{ true }}"><button type="button" class="{{ap.followCls}}" onClick="{{ap.follow}}">{{ap.followLabel}}</button><button type="button" class="btn ghost" onClick="{{ap.message}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>Message</button></sc-if>
 </div>
 </div>
@@ -340,13 +352,13 @@
 <sc-if value="{{ap.hasVideo}}" hint-placeholder-val="{{ false }}"><video class="vid" src="{{ap.video}}" controls playsinline></video></sc-if>
 <sc-if value="{{ap.noVideo}}" hint-placeholder-val="{{ true }}">
 <div class="vidph"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11"></path><rect x="2" y="6" width="14" height="12" rx="2"></rect></svg><p class="h3">Welcome video</p><p class="muted">{{ap.noVideoText}}</p>
-<sc-if value="{{ap.isOwner}}" hint-placeholder-val="{{ false }}"><label class="btn sm">Upload welcome video<input class="sr" type="file" accept="video/*" onChange="{{ap.uploadVideo}}"></label></sc-if>
+<sc-if value="{{ap.isAccount}}" hint-placeholder-val="{{ false }}"><label class="btn sm">Upload welcome video<input class="sr" type="file" accept="video/*" onChange="{{ap.uploadVideo}}"></label></sc-if>
 </div>
 </sc-if>
 </section>
 
 <div class="tabanchor" aria-hidden="true"></div>
-<nav class="tabs" aria-label="Artist sections"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="6"><button type="button" class="{{t.cls}}" onClick="{{t.pick}}" aria-pressed="{{t.on}}"><sc-if value="{{t.is_challenges}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 1-1h13l-2.5 4.5L18 12H5"></path></svg></sc-if><sc-if value="{{t.is_showday}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="m12 9 1 2.2 2.4.3-1.7 1.6.4 2.4L12 14.4l-2.1 1.1.4-2.4-1.7-1.6 2.4-.3z"></path></svg></sc-if><sc-if value="{{t.is_lottery}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="8.5" cy="8.5" r="1.2"></circle><circle cx="15.5" cy="15.5" r="1.2"></circle><circle cx="15.5" cy="8.5" r="1.2"></circle><circle cx="8.5" cy="15.5" r="1.2"></circle></svg></sc-if><sc-if value="{{t.is_community}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 5 18.5V20"></path><circle cx="11" cy="8" r="3.5"></circle><path d="M21 20v-1.2a3 3 0 0 0-2.2-2.9M16 4.6a3.5 3.5 0 0 1 0 6.8"></path></svg></sc-if><sc-if value="{{t.is_games}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="4"></rect><path d="M6 12h4M8 10v4M15 13h.01M18 11h.01"></path></svg></sc-if><sc-if value="{{t.is_scoreboard}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-1 1.2C7.8 18.8 7 20.2 7 22M14 14.7V17c0 .6.5 1 1 1.2 1.2.6 2 2 2 3.8M18 2H6v7a6 6 0 0 0 12 0Z"></path></svg></sc-if><span class="tl">{{t.label}}</span><span class="tshort">{{t.short}}</span></button></sc-for></nav>
+<nav class="{{tabsCls}}" aria-label="Artist sections"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="6"><button type="button" class="{{t.cls}}" onClick="{{t.pick}}" aria-pressed="{{t.on}}"><sc-if value="{{t.is_challenges}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 1-1h13l-2.5 4.5L18 12H5"></path></svg></sc-if><sc-if value="{{t.is_showday}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="m12 9 1 2.2 2.4.3-1.7 1.6.4 2.4L12 14.4l-2.1 1.1.4-2.4-1.7-1.6 2.4-.3z"></path></svg></sc-if><sc-if value="{{t.is_lottery}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="8.5" cy="8.5" r="1.2"></circle><circle cx="15.5" cy="15.5" r="1.2"></circle><circle cx="15.5" cy="8.5" r="1.2"></circle><circle cx="8.5" cy="15.5" r="1.2"></circle></svg></sc-if><sc-if value="{{t.is_community}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 5 18.5V20"></path><circle cx="11" cy="8" r="3.5"></circle><path d="M21 20v-1.2a3 3 0 0 0-2.2-2.9M16 4.6a3.5 3.5 0 0 1 0 6.8"></path></svg></sc-if><sc-if value="{{t.is_games}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="4"></rect><path d="M6 12h4M8 10v4M15 13h.01M18 11h.01"></path></svg></sc-if><sc-if value="{{t.is_scoreboard}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-1 1.2C7.8 18.8 7 20.2 7 22M14 14.7V17c0 .6.5 1 1 1.2 1.2.6 2 2 2 3.8M18 2H6v7a6 6 0 0 0 12 0Z"></path></svg></sc-if><sc-if value="{{t.is_producer}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg></sc-if><sc-if value="{{t.is_credits}}" hint-placeholder-val="{{ false }}"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg></sc-if><span class="tl">{{t.label}}</span><span class="tshort">{{t.short}}</span></button></sc-for></nav>
 
 <!-- list tabs: challenges / showday / lottery -->
 <sc-if value="{{pn.isList}}" hint-placeholder-val="{{ true }}">
@@ -383,6 +395,7 @@
 <sc-if value="{{b.isText}}" hint-placeholder-val="{{ false }}"><svg class="i s" viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"></path></svg></sc-if>
 <sc-if value="{{b.isImage}}" hint-placeholder-val="{{ true }}"><svg class="i s" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg></sc-if>
 <sc-if value="{{b.isVideo}}" hint-placeholder-val="{{ false }}"><svg class="i s" viewBox="0 0 24 24"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11"></path><rect x="2" y="6" width="14" height="12" rx="2"></rect></svg></sc-if>
+<sc-if value="{{b.isListen}}" hint-placeholder-val="{{ false }}"><svg class="i s" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg></sc-if>
 </span>
 <span class="rtitle"><span class="{{b.groupCls}}">{{b.group}}</span>{{b.title}}</span>
 <sc-if value="{{b.hasStatus}}" hint-placeholder-val="{{ false }}"><span class="{{b.stCls}}">{{b.status}}</span></sc-if>
@@ -395,17 +408,22 @@
 <sc-if value="{{b.hasThumb}}" hint-placeholder-val="{{ false }}"><img class="chthumb" src="{{b.thumb}}" alt="{{b.title}}"></sc-if>
 <p>{{b.desc}}</p>
 <div class="meta"><span>{{b.typeLabel}}</span><span>Reward: {{b.rewardText}} per entry</span><span>{{b.countText}}</span></div>
+<sc-if value="{{b.hasWin}}" hint-placeholder-val="{{ false }}"><p class="{{b.winCls}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg><span>{{b.winText}}</span><sc-if value="{{b.hasWinWhen}}" hint-placeholder-val="{{ false }}"><span class="muted sm">{{b.winWhen}}</span></sc-if></p></sc-if>
+<sc-if value="{{b.hasElected}}" hint-placeholder-val="{{ false }}"><div class="elected"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg><span><strong>{{b.electedText}}</strong> · elected by fan vote</span></div></sc-if>
 
 <sc-if value="{{b.owner}}" hint-placeholder-val="{{ false }}">
 <sc-if value="{{b.txtOpts}}" hint-placeholder-val="{{ false }}"><ol class="optlist" type="A"><sc-for list="{{b.options}}" as="o" hint-placeholder-count="3"><li>{{o.label}}</li></sc-for></ol></sc-if>
+<sc-if value="{{b.audOpts}}" hint-placeholder-val="{{ false }}"><div class="aopts own"><sc-for list="{{b.options}}" as="o" hint-placeholder-count="2"><div class="aopt"><div class="apick static"><span class="ol">{{o.letter}}</span><span class="alab">{{o.label}}</span></div><audio controls preload="none" src="{{o.audio}}"></audio></div></sc-for></div></sc-if>
 <sc-if value="{{b.imgOpts}}" hint-placeholder-val="{{ false }}"><div class="iopts own"><sc-for list="{{b.options}}" as="o" hint-placeholder-count="3"><div class="iopt"><span class="iimg"><sc-if value="{{o.hasImg}}" hint-placeholder-val="{{ true }}"><img src="{{o.img}}" alt="{{o.label}}"></sc-if><sc-if value="{{o.noImg}}" hint-placeholder-val="{{ false }}"><span class="inoimg">{{o.letter}}</span></sc-if><span class="ol">{{o.letter}}</span></span><span class="ilab">{{o.label}}</span></div></sc-for></div></sc-if>
 <div class="acts">
-<button type="button" class="btn sm" onClick="{{b.viewSubs}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>Submissions &amp; winner</button>
+<button type="button" class="btn sm" onClick="{{b.viewSubs}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>{{b.subsLabel}}</button>
+<sc-if value="{{b.canQr}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn ghost sm" onClick="{{b.qr}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4"></path></svg>QR code</button><button type="button" class="btn ghost sm" onClick="{{b.stage}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg>Stage screen</button></sc-if>
 <button type="button" class="btn ghost sm" onClick="{{b.edit}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>Edit</button>
 <button type="button" class="btn ghost sm" onClick="{{b.del}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>Delete</button>
 </div>
 </sc-if>
 
+<sc-if value="{{b.showResults}}" hint-placeholder-val="{{ false }}"><div class="tally"><div class="tallyhead"><span class="evlab">Results</span><sc-if value="{{b.liveTag}}" hint-placeholder-val="{{ false }}"><span class="livetag"><i></i>Live</span></sc-if><span class="muted sm">{{b.tallyText}}</span></div><sc-for list="{{b.tally.rows}}" as="r" hint-placeholder-count="2"><div class="{{r.cls}}"><div class="tlab"><span class="ol">{{r.letter}}</span><span class="grow">{{r.label}}</span><sc-if value="{{r.win}}" hint-placeholder-val="{{ false }}"><span class="st win">Winner</span></sc-if><span class="tnum">{{r.n}} · {{r.pctText}}</span></div><div class="tbar"><span style="{{r.bar}}"></span></div></div></sc-for></div></sc-if>
 <sc-if value="{{b.wonOpen}}" hint-placeholder-val="{{ false }}">
 <div class="winbox"><img class="deco" src="assets/coin-green.png" alt=""><p class="disp">YOU WON!</p><p style="max-width: 70%">{{b.artistName}} picked your entry. You can claim your prize now.</p><button type="button" class="btn dark" onClick="{{b.claim}}"><img src="assets/coin-green.png" alt="">Claim green coin</button></div>
 </sc-if>
@@ -413,15 +431,17 @@
 <div class="note ok"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg><div class="grow"><p><strong>You won and claimed the prize for this challenge.</strong></p><p class="muted sm">Keep the card as a trophy, or remove it from your list.</p></div><button type="button" class="btn ghost sm" onClick="{{b.remove}}">Remove card</button></div>
 </sc-if>
 <sc-if value="{{b.participated}}" hint-placeholder-val="{{ false }}">
-<div class="note ok"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg><div class="grow"><p><strong>You already participated.</strong></p><p class="muted sm">{{b.myText}}</p></div><button type="button" class="btn ghost sm" onClick="{{b.cancel}}">Cancel submission</button></div>
+<div class="note ok"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg><div class="grow"><p><strong>{{b.myTitle}}</strong></p><p class="muted sm">{{b.myText}}</p></div><sc-if value="{{b.canCancel}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn ghost sm" onClick="{{b.cancel}}">{{b.cancelLabel}}</button></sc-if></div>
 <sc-if value="{{b.myImg}}" hint-placeholder-val="{{ false }}"><img class="prev" src="{{b.myFile}}" alt="Your submission"></sc-if>
 <sc-if value="{{b.myAnsImg}}" hint-placeholder-val="{{ false }}"><img class="ansthumb" src="{{b.myAnsImg}}" alt="The image you picked"></sc-if>
 <sc-if value="{{b.myVid}}" hint-placeholder-val="{{ false }}"><video class="prev" src="{{b.myFile}}" controls playsinline></video></sc-if>
 </sc-if>
 <sc-if value="{{b.showFull}}" hint-placeholder-val="{{ false }}"><p class="note">This challenge has reached its submission limit.</p></sc-if>
+<sc-if value="{{b.showShut}}" hint-placeholder-val="{{ false }}"><p class="note">{{b.shutText}}</p></sc-if>
 
 <sc-if value="{{b.canSubmit}}" hint-placeholder-val="{{ false }}">
 <div class="stack" style="gap: 12px">
+<sc-if value="{{b.audOpts}}" hint-placeholder-val="{{ false }}"><p class="muted sm" style="margin: 0">Play each take, then tap the one you want on the album.</p><div class="aopts" role="group" aria-label="Takes"><sc-for list="{{b.options}}" as="o" hint-placeholder-count="2"><div class="{{o.acls}}"><button type="button" class="apick" onClick="{{o.pick}}" aria-pressed="{{o.on}}"><span class="ol">{{o.letter}}</span><span class="alab">{{o.label}}</span><span class="ick" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></span></button><audio controls preload="none" src="{{o.audio}}"></audio></div></sc-for></div></sc-if>
 <sc-if value="{{b.imgOpts}}" hint-placeholder-val="{{ false }}"><div class="iopts" role="group" aria-label="Answer options"><sc-for list="{{b.options}}" as="o" hint-placeholder-count="3"><button type="button" class="{{o.tcls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}"><span class="iimg"><sc-if value="{{o.hasImg}}" hint-placeholder-val="{{ true }}"><img src="{{o.img}}" alt="{{o.label}}"></sc-if><sc-if value="{{o.noImg}}" hint-placeholder-val="{{ false }}"><span class="inoimg">{{o.letter}}</span></sc-if><span class="ol">{{o.letter}}</span><span class="ick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></svg></span></span><span class="ilab">{{o.label}}</span></button></sc-for></div></sc-if>
 <sc-if value="{{b.isText}}" hint-placeholder-val="{{ false }}"><div class="fld"><textarea class="in tans" maxlength="500" aria-label="Your answer" placeholder="Type your answer…" value="{{b.textVal}}" onChange="{{b.setText}}"></textarea><span class="muted sm tcount">{{b.textCount}}</span></div></sc-if>
 <sc-if value="{{b.txtOpts}}" hint-placeholder-val="{{ false }}"><div class="opts" role="group" aria-label="Answer options"><sc-for list="{{b.options}}" as="o" hint-placeholder-count="3"><button type="button" class="{{o.cls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}"><span class="ol">{{o.letter}}</span>{{o.label}}</button></sc-for></div></sc-if>
@@ -430,7 +450,7 @@
 <sc-if value="{{b.fileImg}}" hint-placeholder-val="{{ false }}"><img class="prev" src="{{b.file}}" alt="Preview of your upload"></sc-if>
 <sc-if value="{{b.fileVid}}" hint-placeholder-val="{{ false }}"><video class="prev" src="{{b.file}}" controls playsinline></video></sc-if>
 </sc-if>
-<div><button type="button" class="btn grad" disabled="{{b.notReady}}" onClick="{{b.submit}}">Submit &amp; earn <img src="{{b.coinImg}}" alt="">{{b.rw}}</button></div>
+<div><button type="button" class="btn grad" disabled="{{b.notReady}}" onClick="{{b.submit}}">{{b.submitLabel}} <img src="{{b.coinImg}}" alt="">{{b.rw}}</button></div>
 </div>
 </sc-if>
 <sc-if value="{{b.visitor}}" hint-placeholder-val="{{ false }}"><p class="note">You're viewing as an artist. Only fans can take part in challenges, but you can follow and message {{b.artistName}}.</p></sc-if>
@@ -519,7 +539,23 @@
 <sc-if value="{{sb.hasSel}}" hint-placeholder-val="{{ false }}">
 <div class="card stack">
 <div class="stack" style="gap: 6px"><h3 class="h3">{{sb.title}}</h3><p class="muted sm">{{sb.meta}}</p></div>
-<p class="{{sb.statusCls}}">{{sb.status}}</p>
+<sc-if value="{{sb.hasWin}}" hint-placeholder-val="{{ false }}"><p class="{{sb.winCls}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg><span>{{sb.winText}}</span><sc-if value="{{sb.hasWinWhen}}" hint-placeholder-val="{{ false }}"><span class="muted sm">{{sb.winWhen}}</span></sc-if></p></sc-if>
+<sc-if value="{{sb.showStatus}}" hint-placeholder-val="{{ true }}"><p class="{{sb.statusCls}}">{{sb.status}}</p></sc-if>
+<sc-if value="{{sb.isChoice}}" hint-placeholder-val="{{ false }}">
+<div class="tally big">
+<div class="tallyhead"><span class="evlab">Live results</span><sc-if value="{{sb.liveTag}}" hint-placeholder-val="{{ false }}"><span class="livetag"><i></i>Live</span></sc-if><span class="muted sm">{{sb.tallyText}}</span></div>
+<sc-if value="{{sb.hasElected}}" hint-placeholder-val="{{ false }}"><div class="elected"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg><span>{{sb.electedText}}</span></div></sc-if>
+<sc-for list="{{sb.tally}}" as="r" hint-placeholder-count="2"><div class="{{r.cls}}"><div class="tlab"><span class="ol">{{r.letter}}</span><span class="grow">{{r.label}}</span><sc-if value="{{r.win}}" hint-placeholder-val="{{ false }}"><span class="st win">Winner</span></sc-if><span class="tnum">{{r.nText}} · {{r.pctText}}</span><sc-if value="{{r.canElect}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn sm" onClick="{{r.elect}}">Elect winner</button></sc-if></div><sc-if value="{{r.hasAudio}}" hint-placeholder-val="{{ false }}"><audio controls preload="none" src="{{r.audio}}"></audio></sc-if><div class="tbar"><span style="{{r.bar}}"></span></div></div></sc-for>
+<sc-if value="{{sb.electHint}}" hint-placeholder-val="{{ false }}"><p class="muted sm">{{sb.electHint}}</p></sc-if>
+<sc-if value="{{sb.canQr}}" hint-placeholder-val="{{ false }}"><div class="acts"><button type="button" class="btn ghost sm" onClick="{{sb.qr}}">QR code</button><button type="button" class="btn ghost sm" onClick="{{sb.stage}}">Open stage screen</button><sc-if value="{{sb.guestOn}}" hint-placeholder-val="{{ false }}"><span class="muted sm">Quick QR voting is on</span></sc-if></div></sc-if>
+</div>
+<p class="evlab" style="margin: 0">{{sb.rowsTitle}}</p>
+</sc-if>
+<sc-if value="{{sb.isVotable}}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{sb.hasDups}}" hint-placeholder-val="{{ false }}"><p class="note warn">{{sb.dupText}}</p></sc-if>
+<sc-if value="{{sb.hasTop}}" hint-placeholder-val="{{ false }}"><div class="top5"><div class="tallyhead"><span class="evlab">{{sb.topTitle}}</span><span class="muted sm">by net score</span></div><ol class="toplist"><sc-for list="{{sb.top5}}" as="t" hint-placeholder-count="5"><li><span class="rank">{{t.rank}}</span><sc-if value="{{t.hasImg}}" hint-placeholder-val="{{ false }}"><img class="tthumb" src="{{t.file}}" alt=""></sc-if><span class="grow"><sc-if value="{{t.isText}}" hint-placeholder-val="{{ false }}"><strong>“{{t.answer}}”</strong> <span class="muted sm">by {{t.name}}</span></sc-if><sc-if value="{{t.notText}}" hint-placeholder-val="{{ false }}"><strong>{{t.name}}</strong></sc-if></span><sc-if value="{{t.isWinner}}" hint-placeholder-val="{{ false }}"><span class="st win">Winner</span></sc-if><span class="{{t.scoreCls}}">{{t.scoreText}}</span></li></sc-for></ol></div></sc-if>
+<div class="sbsort"><span class="muted sm grow">{{sb.voteNote}}</span><label for="sbsort" class="flabel">Sort</label><select id="sbsort" class="in" value="{{sb.sort}}" onChange="{{sb.setSort}}"><option value="score">Net score</option><option value="new">Newest</option></select></div>
+</sc-if>
 <sc-if value="{{sb.canDraw}}" hint-placeholder-val="{{ false }}"><div><button type="button" class="btn grad" onClick="{{sb.draw}}"><svg class="ticket" viewBox="0 0 32 24" aria-hidden="true"><path d="M3 3h26a1 1 0 0 1 1 1v4.5a3.5 3.5 0 0 0 0 7V20a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-4.5a3.5 3.5 0 0 0 0-7V4a1 1 0 0 1 1-1z" fill="#fff"></path></svg>{{sb.drawLabel}}</button></div></sc-if>
 <sc-if value="{{sb.noRows}}" hint-placeholder-val="{{ false }}"><p class="muted">{{sb.noRowsText}}</p></sc-if>
 <ul class="subs">
@@ -528,6 +564,8 @@
 <button type="button" class="avbtn" onClick="{{r.go}}" aria-label="Open {{r.name}}'s profile"><span class="av a40" style="background: {{r.av.bg}}"><sc-if value="{{r.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.img}}" alt=""></sc-if><sc-if value="{{r.av.noImg}}" hint-placeholder-val="{{ true }}">{{r.av.ini}}</sc-if></span></button>
 <div class="subtxt">
 <div class="row"><button type="button" class="lnk plain" onClick="{{r.go}}">{{r.name}}</button><span class="muted sm">{{r.when}}</span></div>
+<sc-if value="{{r.showDup}}" hint-placeholder-val="{{ false }}"><p class="dupflag"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"></rect><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path></svg>{{r.dupText}}</p></sc-if>
+<sc-if value="{{r.showPrivate}}" hint-placeholder-val="{{ false }}"><p class="muted sm privflag">{{r.privateText}}</p></sc-if>
 <sc-if value="{{r.isMC}}" hint-placeholder-val="{{ false }}"><p class="ansrow"><sc-if value="{{r.hasAnsImg}}" hint-placeholder-val="{{ false }}"><img class="ansthumb sm" src="{{r.ansImg}}" alt=""></sc-if><span>Answered <strong>{{r.answer}}</strong></span></p></sc-if>
 <sc-if value="{{r.isText}}" hint-placeholder-val="{{ false }}"><blockquote class="tquote">{{r.answer}}</blockquote></sc-if>
 <sc-if value="{{r.isEntry}}" hint-placeholder-val="{{ false }}"><p>{{r.entryText}}</p></sc-if>
@@ -540,7 +578,7 @@
 <button type="button" class="{{r.upCls}}" onClick="{{r.up}}" disabled="{{r.noVote}}" aria-pressed="{{r.myUp}}" aria-label="Upvote ({{r.upCount}})" title="{{r.voteHint}}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 4.5 12.5H9V20h6v-7.5h4.5z"></path></svg></button>
 <span class="{{r.scoreCls}}">{{r.score}}</span>
 <button type="button" class="{{r.downCls}}" onClick="{{r.down}}" disabled="{{r.noVote}}" aria-pressed="{{r.myDown}}" aria-label="Downvote ({{r.downCount}})" title="{{r.voteHint}}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20l7.5-8.5H15V4H9v7.5H4.5z"></path></svg></button>
-<span class="vmeta">{{r.upCount}} up · {{r.downCount}} down</span>
+<span class="vmeta">{{r.upCount}} up · {{r.downCount}} down · <strong>{{r.scoreText}}</strong></span>
 </div>
 </sc-if>
 </div>
@@ -554,6 +592,50 @@
 </ul>
 </div>
 </sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{pn.isProducer}}" hint-placeholder-val="{{ false }}">
+<section class="panel stack prod">
+<div class="phead"><div class="stack" style="gap: 4px"><h2 class="h2">Producer tools</h2><p class="muted">Managers, invite links, the feedback survey, Co-Producer badges and the liner notes.</p></div></div>
+<sc-if value="{{prd.hasErr}}" hint-placeholder-val="{{ false }}"><p class="err" role="alert">{{prd.err}}</p></sc-if>
+<section class="card stack"><h3 class="h3">Managers</h3><p class="muted sm">People who run this account with their own login. They can post challenges, see live votes, elect winners and give badges.</p>
+<sc-if value="{{prd.noManagers}}" hint-placeholder-val="{{ false }}"><p class="muted">No managers yet.</p></sc-if>
+<ul class="plist"><sc-for list="{{prd.managers}}" as="m" hint-placeholder-count="2"><li><span class="av a32" style="background: {{m.av.bg}}"><sc-if value="{{m.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{m.av.img}}" alt=""></sc-if><sc-if value="{{m.av.noImg}}" hint-placeholder-val="{{ true }}">{{m.av.ini}}</sc-if></span><span class="grow"><strong>{{m.name}}</strong><span class="muted sm">{{m.email}}</span></span><sc-if value="{{m.isMe}}" hint-placeholder-val="{{ false }}"><span class="you">You</span></sc-if><sc-if value="{{m.canRemove}}" hint-placeholder-val="{{ false }}"><button type="button" class="lnk sm" onClick="{{m.remove}}">{{m.removeLabel}}</button></sc-if></li></sc-for></ul>
+<sc-if value="{{prd.canAddMgr}}" hint-placeholder-val="{{ false }}"><div class="inrow"><input class="in" type="email" aria-label="New manager's email" placeholder="Their Collabz email" value="{{prd.mEmail}}" onChange="{{prd.setMEmail}}"><button type="button" class="btn" onClick="{{prd.addMgr}}">Add manager</button></div><p class="muted sm">They sign up first (as a fan is fine), then you add them here with the email they used.</p></sc-if>
+</section>
+<section class="card stack"><h3 class="h3">Invite links</h3><p class="muted sm">{{prd.inviteOnlyText}} People who join with a link follow this page automatically.</p>
+<div class="grid3"><div class="fld"><label for="pil">Who it’s for</label><input id="pil" class="in" placeholder="e.g. Group A listeners" value="{{prd.iLabel}}" onChange="{{prd.setILabel}}"></div><div class="fld"><label for="pim">Max uses</label><input id="pim" class="in" type="number" min="1" max="1000" value="{{prd.iMax}}" onChange="{{prd.setIMax}}"></div><div class="fld"><label for="pid">Valid for (days)</label><input id="pid" class="in" type="number" min="0" value="{{prd.iDays}}" onChange="{{prd.setIDays}}"></div></div>
+<div><button type="button" class="btn grad" onClick="{{prd.createInvite}}">Create invite link</button></div>
+<sc-if value="{{prd.noInvites}}" hint-placeholder-val="{{ false }}"><p class="muted">No invite links yet.</p></sc-if>
+<ul class="plist"><sc-for list="{{prd.invites}}" as="i" hint-placeholder-count="2"><li class="inv"><span class="grow"><strong>{{i.label}}</strong> <code class="code">{{i.code}}</code><span class="muted sm">{{i.usesText}} · {{i.expText}}</span></span><span class="{{i.stCls}}">{{i.state}}</span><button type="button" class="btn ghost sm" onClick="{{i.copy}}">Copy link</button><button type="button" class="lnk sm" onClick="{{i.toggle}}">{{i.toggleLabel}}</button></li></sc-for></ul>
+</section>
+<section class="card stack"><h3 class="h3">Feedback survey</h3><p class="muted sm">Paste the link to the 5-question survey. Fans see a “Take the survey” card on this page.</p>
+<div class="inrow"><input class="in" type="url" aria-label="Survey link" placeholder="https://…" value="{{prd.survey}}" onChange="{{prd.setSurvey}}"><button type="button" class="btn" onClick="{{prd.saveSurvey}}">Save</button></div><p class="muted sm">{{prd.surveyNow}}</p>
+</section>
+<section class="card stack"><h3 class="h3">Co-Producer badges</h3><p class="muted sm">Top contributors by entries and votes. The “{{prd.badgeLabel}}” badge shows on their profile and in the liner notes.</p>
+<sc-if value="{{prd.canTop5}}" hint-placeholder-val="{{ false }}"><div><button type="button" class="btn grad sm" onClick="{{prd.top5}}"><svg class="medal" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h4l1 5-3 2zM17 2h-4l-1 5 3 2z" fill="#8b5cf6"></path><circle cx="12" cy="15" r="6.5" fill="#f5b942" stroke="#b7791f" stroke-width="1.2"></circle><path d="m12 11.6 1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z" fill="#fff8e1"></path></svg>{{prd.top5Label}}</button></div></sc-if>
+<sc-if value="{{prd.noContrib}}" hint-placeholder-val="{{ false }}"><p class="muted">No contributions yet.</p></sc-if>
+<ul class="plist"><sc-for list="{{prd.contrib}}" as="p" hint-placeholder-count="3"><li><span class="rank">{{p.rank}}</span><button type="button" class="avbtn" onClick="{{p.go}}" aria-label="Open {{p.name}}'s profile"><span class="av a32" style="background: {{p.av.bg}}"><sc-if value="{{p.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{p.av.img}}" alt=""></sc-if><sc-if value="{{p.av.noImg}}" hint-placeholder-val="{{ true }}">{{p.av.ini}}</sc-if></span></button><span class="grow"><strong>{{p.name}}</strong><span class="muted sm">{{p.countText}}</span></span><sc-if value="{{p.has}}" hint-placeholder-val="{{ false }}"><span class="badgechip sm"><svg class="medal" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h4l1 5-3 2zM17 2h-4l-1 5 3 2z" fill="#8b5cf6"></path><circle cx="12" cy="15" r="6.5" fill="#f5b942" stroke="#b7791f" stroke-width="1.2"></circle><path d="m12 11.6 1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z" fill="#fff8e1"></path></svg>Co-Producer</span><button type="button" class="lnk sm" onClick="{{p.revoke}}">Remove</button></sc-if><sc-if value="{{p.notHas}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn sm" onClick="{{p.give}}">Give badge</button></sc-if></li></sc-for></ul>
+</section>
+<sc-if value="{{prd.isAdmin}}" hint-placeholder-val="{{ false }}"><section class="card stack"><h3 class="h3">Parent consent (admin)</h3><p class="muted sm">Under-13s who signed up and are waiting for a parent or guardian. Email the parent their consent link. Only send it to the parent’s address.</p>
+<sc-if value="{{prd.noPending}}" hint-placeholder-val="{{ false }}"><p class="muted">Nobody is waiting for parent consent.</p></sc-if>
+<ul class="plist"><sc-for list="{{prd.pending}}" as="c" hint-placeholder-count="1"><li class="inv"><span class="grow"><strong>{{c.name}}</strong><span class="muted sm">{{c.email}} · parent: {{c.parentEmail}}</span></span><a class="btn sm" href="{{c.mail}}">Email parent</a><button type="button" class="btn ghost sm" onClick="{{c.copy}}">Copy consent link</button></li></sc-for></ul>
+</section></sc-if>
+<section class="card stack"><h3 class="h3">Liner notes</h3><p class="muted sm">Everyone who took part is credited. Fans see these on the Credits tab, and you can share the public page.</p><div class="acts"><button type="button" class="btn ghost sm" onClick="{{prd.credits.copy}}">Copy public link</button><button type="button" class="btn ghost sm" onClick="{{prd.credits.open}}">Open liner notes</button></div></section>
+</section>
+</sc-if>
+<sc-if value="{{pn.isCredits}}" hint-placeholder-val="{{ false }}">
+<section class="panel">
+<div class="liner">
+<sc-if value="{{cr.hasBanner}}" hint-placeholder-val="{{ false }}"><div class="banner" style="{{cr.bannerStyle}}" role="img" aria-label="{{cr.name}} banner"></div></sc-if>
+<div class="linerhead"><span class="av a72" style="background: {{cr.av.bg}}"><sc-if value="{{cr.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{cr.av.img}}" alt=""></sc-if><sc-if value="{{cr.av.noImg}}" hint-placeholder-val="{{ true }}">{{cr.av.ini}}</sc-if></span><div class="stack" style="gap: 4px"><p class="eyebrow" style="margin: 0">Digital liner notes</p><h2 class="h1">{{cr.name}}</h2><p class="muted">{{cr.producersText}}</p></div></div>
+<sc-if value="{{cr.hasResults}}" hint-placeholder-val="{{ false }}"><section class="stack" style="gap: 8px"><h3 class="h3">Decided by the fans</h3><ul class="lres"><sc-for list="{{cr.results}}" as="r" hint-placeholder-count="2"><li><sc-if value="{{r.hasFile}}" hint-placeholder-val="{{ false }}"><img class="tthumb" src="{{r.file}}" alt=""></sc-if><span class="grow"><span class="muted sm">{{r.kind}}</span><strong>{{r.title}}</strong><span class="muted sm">{{r.sub}}</span></span><span class="lwin">{{r.winner}}</span></li></sc-for></ul></section></sc-if>
+<sc-if value="{{cr.hasCo}}" hint-placeholder-val="{{ false }}"><section class="stack" style="gap: 8px"><h3 class="h3">Co-Producers</h3><div class="cogrid"><sc-for list="{{cr.coproducers}}" as="p" hint-placeholder-count="2"><div class="coitem"><span class="av a56" style="background: {{p.av.bg}}"><sc-if value="{{p.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{p.av.img}}" alt=""></sc-if><sc-if value="{{p.av.noImg}}" hint-placeholder-val="{{ true }}">{{p.av.ini}}</sc-if></span><strong>{{p.name}}</strong><span class="badgechip sm"><svg class="medal" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h4l1 5-3 2zM17 2h-4l-1 5 3 2z" fill="#8b5cf6"></path><circle cx="12" cy="15" r="6.5" fill="#f5b942" stroke="#b7791f" stroke-width="1.2"></circle><path d="m12 11.6 1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z" fill="#fff8e1"></path></svg>Co-Producer</span></div></sc-for></div></section></sc-if>
+<sc-if value="{{cr.hasContrib}}" hint-placeholder-val="{{ false }}"><section class="stack" style="gap: 8px"><h3 class="h3">With thanks to {{cr.contribCount}}</h3><ul class="names"><sc-for list="{{cr.contributors}}" as="p" hint-placeholder-count="4"><li><span class="av a24" style="background: {{p.av.bg}}"><sc-if value="{{p.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{p.av.img}}" alt=""></sc-if><sc-if value="{{p.av.noImg}}" hint-placeholder-val="{{ true }}">{{p.av.ini}}</sc-if></span><span>{{p.name}}</span><span class="muted sm">{{p.countText}}</span></li></sc-for></ul></section></sc-if>
+<sc-if value="{{cr.hasGuests}}" hint-placeholder-val="{{ false }}"><p class="muted">{{cr.guestText}}</p></sc-if>
+</div>
+<sc-if value="{{cr.has}}" hint-placeholder-val="{{ false }}"><div class="acts" style="margin-top: 12px"><button type="button" class="btn ghost sm" onClick="{{cr.copy}}">Copy link to share</button></div></sc-if>
 </section>
 </sc-if>
 
@@ -696,7 +778,19 @@
 <sc-if value="{{pf.isArtist}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn ghost" onClick="{{pf.openPage}}">Open artist page</button></sc-if>
 </div>
 <sc-if value="{{pf.isMe}}" hint-placeholder-val="{{ false }}"><p class="muted sm">Tip: tap your photo for profile options.</p></sc-if>
+<sc-if value="{{pf.isPrivate}}" hint-placeholder-val="{{ false }}"><p class="note">This profile is private for now.</p></sc-if>
+<sc-if value="{{pf.waitingConsent}}" hint-placeholder-val="{{ false }}"><p class="note warn" role="status">{{pf.waitingText}}</p></sc-if>
+<sc-if value="{{pf.hasManages}}" hint-placeholder-val="{{ false }}"><div class="row" style="gap: 6px"><span class="muted sm">Manages</span><sc-for list="{{pf.manages}}" as="x" hint-placeholder-count="1"><button type="button" class="pill lnkpill" onClick="{{x.go}}">{{x.name}}</button></sc-for></div></sc-if>
 </section>
+<sc-if value="{{pf.hasBadges}}" hint-placeholder-val="{{ false }}">
+<section class="card stack" aria-label="Badges"><h2 class="h3">Badges</h2><ul class="blist2"><sc-for list="{{pf.badges}}" as="x" hint-placeholder-count="1"><li><button type="button" class="arow" onClick="{{x.go}}"><svg class="medal big" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h4l1 5-3 2zM17 2h-4l-1 5 3 2z" fill="#8b5cf6"></path><circle cx="12" cy="15" r="6.5" fill="#f5b942" stroke="#b7791f" stroke-width="1.2"></circle><path d="m12 11.6 1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z" fill="#fff8e1"></path></svg><span class="grow"><strong>{{x.label}}</strong><span class="muted sm">{{x.artist}} · {{x.when}}</span></span></button></li></sc-for></ul></section>
+</sc-if>
+<sc-if value="{{pf.isAdmin}}" hint-placeholder-val="{{ false }}">
+<section class="card stack"><h2 class="h3">Parent consent (admin)</h2><p class="muted sm">Under-13s waiting for a parent or guardian. Email each parent their consent link. Only send it to the parent’s address.</p>
+<sc-if value="{{pf.noPending}}" hint-placeholder-val="{{ false }}"><p class="muted">Nobody is waiting for parent consent.</p></sc-if>
+<ul class="plist"><sc-for list="{{pf.pending}}" as="c" hint-placeholder-count="1"><li class="inv"><span class="grow"><strong>{{c.name}}</strong><span class="muted sm">{{c.email}} · parent: {{c.parentEmail}}</span></span><a class="btn sm" href="{{c.mail}}">Email parent</a><button type="button" class="btn ghost sm" onClick="{{c.copy}}">Copy consent link</button></li></sc-for></ul>
+</section>
+</sc-if>
 <sc-if value="{{pf.hasLv}}" hint-placeholder-val="{{ false }}">
 <section class="card lvlcard" aria-label="Fan level">
 <img class="lvlbig" src="{{pf.lv.icon}}" alt="{{pf.lv.label}} badge">
@@ -763,6 +857,7 @@
 <div class="fld"><label for="mct">Challenge title</label><input id="mct" class="in" placeholder="e.g. Take a selfie inside the theatre" value="{{md.d.title}}" onChange="{{mf.title}}"></div>
 <div class="fld"><label for="mcd">Description</label><textarea id="mcd" class="in" placeholder="What should fans do?" value="{{md.d.desc}}" onChange="{{mf.desc}}"></textarea></div>
 <div class="fld"><span class="flabel">Challenge type</span><div class="seg grp" role="group" aria-label="Challenge type"><sc-for list="{{md.groups}}" as="x" hint-placeholder-count="2"><button type="button" class="{{x.cls}}" onClick="{{x.pick}}" aria-pressed="{{x.on}}"><strong>{{x.label}}</strong><span>{{x.sub}}</span></button></sc-for></div></div>
+<sc-if value="{{md.isChooseType}}" hint-placeholder-val="{{ false }}"><div class="fld"><span class="flabel">Fans choose from</span><div class="seg grp" role="group" aria-label="What fans choose from"><sc-for list="{{md.chooseKinds}}" as="x" hint-placeholder-count="2"><button type="button" class="{{x.cls}}" onClick="{{x.pick}}" aria-pressed="{{x.on}}"><strong>{{x.label}}</strong><span>{{x.sub}}</span></button></sc-for></div></div></sc-if>
 <sc-if value="{{md.isCreate}}" hint-placeholder-val="{{ true }}"><div class="fld"><span class="flabel">Fans submit</span><div class="seg" role="group" aria-label="What fans submit"><sc-for list="{{md.types}}" as="x" hint-placeholder-count="3"><button type="button" class="{{x.cls}}" onClick="{{x.pick}}" aria-pressed="{{x.on}}">{{x.label}}</button></sc-for></div></div></sc-if>
 <div class="fld"><span class="flabel">Thumbnail image (optional)</span>
 <div class="imgup"><span class="imgprev sq"><sc-if value="{{md.hasThumb}}" hint-placeholder-val="{{ false }}"><img src="{{md.d.thumb}}" alt="Challenge thumbnail"></sc-if><sc-if value="{{md.noThumb}}" hint-placeholder-val="{{ true }}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path></svg></sc-if></span>
@@ -770,13 +865,31 @@
 <span class="muted sm">Shown when fans open the challenge.</span></div>
 
 <sc-if value="{{md.isMCType}}" hint-placeholder-val="{{ false }}"><div class="fld"><span class="flabel">Answer options (at least 2)</span><p class="muted sm" style="margin: 0">Type an answer, add an image, or both. Fans tap the one they choose.</p><sc-for list="{{md.opts}}" as="o" hint-placeholder-count="4"><div class="optrow"><span class="ol">{{o.letter}}</span><input class="in" aria-label="{{o.ph}} text" placeholder="{{o.ph}}" value="{{o.val}}" onChange="{{o.set}}"><sc-if value="{{o.hasImg}}" hint-placeholder-val="{{ false }}"><span class="othumb"><img src="{{o.img}}" alt="Image for {{o.ph}}"><button type="button" class="oclr" onClick="{{o.clearImg}}" aria-label="Remove image from {{o.ph}}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></span></sc-if><sc-if value="{{o.noImg}}" hint-placeholder-val="{{ true }}"><label class="oadd" title="Add an image"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path></svg><span class="sr">Add an image to {{o.ph}}</span><input class="sr" type="file" accept="image/*" onChange="{{o.onImg}}"></label></sc-if></div></sc-for></div></sc-if>
-<sc-if value="{{md.isTextType}}" hint-placeholder-val="{{ false }}"><p class="note">Fans type their own answer (up to 500 characters). You’ll read every answer on the Scoreboard and pick a winner.</p></sc-if>
+<sc-if value="{{md.isTextType}}" hint-placeholder-val="{{ false }}"><p class="note">Fans type their own answer (up to 500 characters) and vote on each other’s on the Scoreboard. You’ll see the Top 5 by net score and elect a winner.</p></sc-if>
+<sc-if value="{{md.isListenType}}" hint-placeholder-val="{{ false }}"><div class="fld"><span class="flabel">Audio clips (at least 2)</span><p class="muted sm" style="margin: 0">Upload MP3s of up to 30 seconds. Fans play each one in the app, then vote. Name them (e.g. Take A) or leave the name empty.</p>
+<sc-for list="{{md.aopts}}" as="o" hint-placeholder-count="2"><div class="aedit"><div class="optrow"><span class="ol">{{o.letter}}</span><input class="in" aria-label="Name for clip {{o.letter}}" placeholder="{{o.ph}}" value="{{o.val}}" onChange="{{o.set}}"><sc-if value="{{o.noAudio}}" hint-placeholder-val="{{ true }}"><label class="btn ghost sm addclip"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>Add clip<input class="sr" type="file" accept="audio/*,.mp3,.m4a,.wav" onChange="{{o.onAudio}}"></label></sc-if><sc-if value="{{o.hasAudio}}" hint-placeholder-val="{{ false }}"><button type="button" class="ib sm" onClick="{{o.clear}}" aria-label="Remove clip {{o.letter}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></sc-if></div>
+<sc-if value="{{o.hasAudio}}" hint-placeholder-val="{{ false }}"><div class="aprev"><span class="muted sm">{{o.name}}</span><audio controls preload="metadata" src="{{o.audio}}"></audio></div></sc-if></div></sc-for></div></sc-if>
 <div class="fld"><span class="flabel">Reward coin</span><div class="seg" role="group" aria-label="Reward coin"><sc-for list="{{md.rts}}" as="x" hint-placeholder-count="2"><button type="button" class="{{x.cls}}" onClick="{{x.pick}}" aria-pressed="{{x.on}}"><img src="{{x.img}}" alt="">{{x.label}}</button></sc-for></div></div>
 <div class="grid2">
 <div class="fld"><label for="mcr">Coins per submission</label><input id="mcr" class="in" type="number" min="1" value="{{md.d.rw}}" onChange="{{mf.rw}}"></div>
 <div class="fld"><label for="mcm">Max submissions</label><input id="mcm" class="in" type="number" min="1" value="{{md.d.max}}" onChange="{{mf.max}}"></div>
 </div>
+<div class="fld"><span class="flabel">Voting window (optional)</span>
+<div class="grid2"><div class="fld"><label for="mco">Opens</label><input id="mco" class="in" type="datetime-local" value="{{md.opens}}" onChange="{{md.setOpens}}"></div><div class="fld"><label for="mcc">Closes</label><input id="mcc" class="in" type="datetime-local" value="{{md.closes}}" onChange="{{md.setCloses}}"></div></div>
+<div class="qchips"><sc-for list="{{md.quick}}" as="q" hint-placeholder-count="5"><button type="button" class="chip" onClick="{{q.pick}}">{{q.label}}</button></sc-for></div>
+<span class="muted sm">{{md.windowHint}}</span></div>
+<sc-if value="{{md.isChooseType}}" hint-placeholder-val="{{ false }}"><label class="check"><input type="checkbox" checked="{{md.guest}}" onChange="{{md.setGuest}}"><span><strong>Quick QR voting</strong><span class="muted sm">Anyone who scans the QR code can vote without signing up, one vote per phone. Good for live gigs.</span></span></label></sc-if>
 <p class="muted sm">Every fan who submits earns the reward automatically. The winner you pick also gets 1 green coin.</p>
+</div>
+</sc-if>
+
+<sc-if value="{{md.isQr}}" hint-placeholder-val="{{ false }}">
+<div class="stack qrbox">
+<p class="h3">{{md.qrTitle}}</p>
+<img class="qrimg" src="{{md.qrImg}}" alt="QR code that opens the vote">
+<p class="muted sm wrapurl">{{md.qrUrl}}</p>
+<p class="note">{{md.qrNote}}</p>
+<div class="acts"><button type="button" class="btn grad" onClick="{{md.openStage}}">Open stage screen</button><button type="button" class="btn ghost" onClick="{{md.copy}}">Copy link</button><a class="btn ghost" href="{{md.qrImg}}" download="{{md.qrFile}}">Download QR</a></div>
 </div>
 </sc-if>
 
@@ -901,6 +1014,9 @@
 <div class="fld"><label for="edb">Bio</label><textarea id="edb" class="in" value="{{md.d.bio}}" onChange="{{mf.bio}}"></textarea></div>
 <div class="fld"><label for="edl">Location</label><input id="edl" class="in" value="{{md.d.location}}" onChange="{{mf.location}}"></div>
 <sc-if value="{{md.meArtist}}" hint-placeholder-val="{{ false }}">
+<div class="fld"><span class="flabel">Banner image</span><div class="bannerup" style="{{md.bannerStyle}}"><sc-if value="{{md.noBanner}}" hint-placeholder-val="{{ true }}"><span class="muted sm">No banner</span></sc-if></div>
+<div class="row"><label class="btn ghost sm">{{md.bannerLabel}}<input class="sr" type="file" accept="image/*" onChange="{{md.bannerFile}}"></label><sc-if value="{{md.hasBanner}}" hint-placeholder-val="{{ false }}"><button type="button" class="lnk sm" onClick="{{md.clearBanner}}">Remove banner</button></sc-if></div>
+<span class="muted sm">Shown across the top of your page. A wide image works best (about 3:1).</span></div>
 <div class="fld"><span class="flabel">Genres · {{md.genreCount}}</span><p class="muted sm" style="margin-top: -2px">Choose up to 3. Fans find you under each one.</p><div class="gchips" role="group" aria-label="Genres"><sc-for list="{{md.genreChips}}" as="g" hint-placeholder-count="6"><button type="button" class="{{g.cls}}" onClick="{{g.pick}}" aria-pressed="{{g.on}}">{{g.label}}</button></sc-for></div></div>
 <div class="fld"><span class="flabel">Welcome video</span><label class="drop"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11"></path><rect x="2" y="6" width="14" height="12" rx="2"></rect></svg><span>{{md.videoLabel}}</span><input class="sr" type="file" accept="video/*" onChange="{{mf.videoFile}}"></label></div>
 <div class="fld"><span class="flabel">Page theme</span><p class="muted sm" style="margin-top: -2px">Changes the background of your artist page for everyone who visits. Text adjusts automatically.</p>
@@ -1049,6 +1165,93 @@
 </div>
 </sc-if>
 
+<!-- ================= QR VOTE (works without an account) ================= -->
+<sc-if value="{{scr.vote}}" hint-placeholder-val="{{ false }}">
+<main class="pubwrap">
+<div class="pubcard stack">
+<img class="minilogo" src="assets/collabz-logo.png" alt="Collabz">
+<sc-if value="{{vt.loading}}" hint-placeholder-val="{{ false }}"><div class="gwait"><span class="spinner" aria-hidden="true"></span><p class="muted">Loading…</p></div></sc-if>
+<sc-if value="{{vt.notFound}}" hint-placeholder-val="{{ false }}"><p class="h3">{{vt.errText}}</p></sc-if>
+<sc-if value="{{vt.title}}" hint-placeholder-val="{{ false }}">
+<div class="row"><span class="av a40" style="background: {{vt.av.bg}}"><sc-if value="{{vt.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{vt.av.img}}" alt=""></sc-if><sc-if value="{{vt.av.noImg}}" hint-placeholder-val="{{ true }}">{{vt.av.ini}}</sc-if></span><span class="muted">{{vt.artistName}}</span></div>
+<h1 class="h2">{{vt.title}}</h1>
+<sc-if value="{{vt.hasDesc}}" hint-placeholder-val="{{ false }}"><p class="muted">{{vt.desc}}</p></sc-if>
+<sc-if value="{{vt.hasWin}}" hint-placeholder-val="{{ false }}"><p class="{{vt.winCls}}"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg><span>{{vt.winText}}</span></p></sc-if>
+<sc-if value="{{vt.hasElected}}" hint-placeholder-val="{{ false }}"><div class="elected"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg><span><strong>{{vt.electedText}}</strong></span></div></sc-if>
+<sc-if value="{{vt.canVote}}" hint-placeholder-val="{{ false }}">
+<div class="vopts" role="group" aria-label="Options"><sc-for list="{{vt.options}}" as="o" hint-placeholder-count="3"><div class="{{o.cls}}"><button type="button" class="vpick" onClick="{{o.pick}}" aria-pressed="{{o.on}}"><span class="ol">{{o.letter}}</span><span class="grow">{{o.label}}</span><span class="ick" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></span></button><sc-if value="{{o.hasImg}}" hint-placeholder-val="{{ false }}"><img class="vimg" src="{{o.img}}" alt=""></sc-if><sc-if value="{{o.hasAudio}}" hint-placeholder-val="{{ false }}"><audio controls preload="none" src="{{o.audio}}"></audio></sc-if></div></sc-for></div>
+<sc-if value="{{vt.hasErr}}" hint-placeholder-val="{{ false }}"><p class="err" role="alert">{{vt.err}}</p></sc-if>
+<button type="button" class="btn grad full big" disabled="{{vt.notReady}}" onClick="{{vt.submit}}">Vote</button>
+<p class="muted sm center">{{vt.coinNote}}</p>
+</sc-if>
+<sc-if value="{{vt.needLogin}}" hint-placeholder-val="{{ false }}"><p class="note">Log in to Collabz to vote in this one.</p><button type="button" class="btn grad full" onClick="{{vt.login}}">Log in to vote</button></sc-if>
+<sc-if value="{{vt.voted}}" hint-placeholder-val="{{ false }}"><p class="note ok" role="status">{{vt.votedText}}</p></sc-if>
+<sc-if value="{{vt.showResults}}" hint-placeholder-val="{{ false }}"><div class="tally"><div class="tallyhead"><span class="evlab">Results</span><span class="muted sm">{{vt.results.totalText}}</span></div><sc-for list="{{vt.results.rows}}" as="r" hint-placeholder-count="2"><div class="{{r.cls}}"><div class="tlab"><span class="ol">{{r.letter}}</span><span class="grow">{{r.label}}</span><sc-if value="{{r.win}}" hint-placeholder-val="{{ false }}"><span class="st win">Winner</span></sc-if><span class="tnum">{{r.n}} · {{r.pctText}}</span></div><div class="tbar"><span style="{{r.bar}}"></span></div></div></sc-for></div></sc-if>
+</sc-if>
+</div>
+</main>
+</sc-if>
+
+<!-- ================= STAGE SCREEN (live results for the venue) ================= -->
+<sc-if value="{{scr.stage}}" hint-placeholder-val="{{ false }}">
+<main class="stage">
+<sc-if value="{{stg.loading}}" hint-placeholder-val="{{ false }}"><div class="gwait"><span class="spinner" aria-hidden="true"></span><p class="muted">Loading…</p></div></sc-if>
+<sc-if value="{{stg.notFound}}" hint-placeholder-val="{{ false }}"><p class="stitle">{{stg.errText}}</p></sc-if>
+<sc-if value="{{stg.title}}" hint-placeholder-val="{{ false }}">
+<header class="stghead"><div class="row"><span class="av a56" style="background: {{stg.av.bg}}"><sc-if value="{{stg.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{stg.av.img}}" alt=""></sc-if><sc-if value="{{stg.av.noImg}}" hint-placeholder-val="{{ true }}">{{stg.av.ini}}</sc-if></span><span class="sart">{{stg.artistName}}</span></div><img class="slogo" src="assets/collabz-logo.png" alt="Collabz"><button type="button" class="ib" onClick="{{stg.full}}" aria-label="Full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"></path></svg></button></header>
+<div class="sgrid">
+<div class="sleft">
+<h1 class="stitle">{{stg.title}}</h1>
+<sc-if value="{{stg.hasWin}}" hint-placeholder-val="{{ false }}"><p class="{{stg.winCls}} big"><svg class="i s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg><span>{{stg.winText}}</span></p></sc-if>
+<sc-if value="{{stg.hasElected}}" hint-placeholder-val="{{ false }}"><div class="swinner"><span>Winner</span><strong>{{stg.electedText}}</strong></div></sc-if>
+<div class="sbars"><sc-for list="{{stg.rows}}" as="r" hint-placeholder-count="3"><div class="{{r.cls}}"><div class="tlab"><span class="ol">{{r.letter}}</span><span class="grow">{{r.label}}</span><span class="tnum">{{r.n}}</span><span class="tpct">{{r.pctText}}</span></div><div class="tbar"><span style="{{r.bar}}"></span></div></div></sc-for></div>
+<p class="stotal">{{stg.totalText}}</p>
+</div>
+<sc-if value="{{stg.showQr}}" hint-placeholder-val="{{ false }}"><div class="sqr"><img src="{{stg.qr}}" alt="QR code: scan to vote"><p><strong>{{stg.scanText}}</strong></p><p class="surl">{{stg.url}}</p></div></sc-if>
+</div>
+<sc-if value="{{stg.isDemo}}" hint-placeholder-val="{{ false }}"><p class="sdemo">Demo preview: pretend audience votes keep coming in.</p></sc-if>
+</sc-if>
+</main>
+</sc-if>
+
+<!-- ================= PARENT CONSENT ================= -->
+<sc-if value="{{scr.consent}}" hint-placeholder-val="{{ false }}">
+<main class="pubwrap">
+<div class="pubcard stack">
+<img class="minilogo" src="assets/collabz-logo.png" alt="Collabz">
+<sc-if value="{{cs.loading}}" hint-placeholder-val="{{ false }}"><div class="gwait"><span class="spinner" aria-hidden="true"></span><p class="muted">Loading…</p></div></sc-if>
+<sc-if value="{{cs.notFound}}" hint-placeholder-val="{{ false }}"><h1 class="h2">This link isn’t valid</h1><p class="muted">Check the email you were sent, or reply to it and the Collabz team will help.</p></sc-if>
+<sc-if value="{{cs.done}}" hint-placeholder-val="{{ false }}"><h1 class="h2">Thank you</h1><p><strong>{{cs.name}}</strong> can now use Collabz fully. You can close this page.</p></sc-if>
+<sc-if value="{{cs.open}}" hint-placeholder-val="{{ false }}">
+<h1 class="h2">Parent or guardian consent</h1>
+<p><strong>{{cs.name}}</strong> signed up to Collabz, an app where fans take part in creative challenges set by artists and earn in-app coins and badges. Because they are under 13, we need your OK.</p>
+<ul class="dellist"><li>Other users see the name they chose, their photo if they add one, and what they post.</li><li>Until you say OK, their entries, topics and replies are hidden from other fans, and direct messages are switched off.</li><li>Coins, badges and levels have no cash value.</li><li>You can ask us to delete the account at any time by replying to the email you received.</li></ul>
+<div class="fld"><label for="cpn">Your full name</label><input id="cpn" class="in" autocomplete="name" value="{{cs.parent}}" onChange="{{cs.setName}}"></div>
+<label class="check"><input type="checkbox" checked="{{cs.agree}}" onChange="{{cs.setAgree}}"><span>I’m {{cs.name}}’s parent or legal guardian and I agree to them using Collabz.</span></label>
+<sc-if value="{{cs.hasErr}}" hint-placeholder-val="{{ false }}"><p class="err" role="alert">{{cs.err}}</p></sc-if>
+<button type="button" class="btn grad full" onClick="{{cs.submit}}">Give consent</button>
+</sc-if>
+</div>
+</main>
+</sc-if>
+
+<!-- ================= PUBLIC LINER NOTES ================= -->
+<sc-if value="{{scr.pcredits}}" hint-placeholder-val="{{ false }}">
+<main class="wrap page pubnotes">
+<img class="minilogo" src="assets/collabz-logo.png" alt="Collabz">
+<sc-if value="{{pc.loading}}" hint-placeholder-val="{{ false }}"><div class="gwait"><span class="spinner" aria-hidden="true"></span><p class="muted">Loading…</p></div></sc-if>
+<sc-if value="{{pc.notFound}}" hint-placeholder-val="{{ false }}"><p class="h3">These liner notes weren’t found.</p></sc-if>
+<sc-if value="{{pc.has}}" hint-placeholder-val="{{ false }}"><section class="card"><div class="liner">
+<sc-if value="{{pc.hasBanner}}" hint-placeholder-val="{{ false }}"><div class="banner" style="{{pc.bannerStyle}}" role="img" aria-label="{{pc.name}} banner"></div></sc-if>
+<div class="linerhead"><span class="av a72" style="background: {{pc.av.bg}}"><sc-if value="{{pc.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{pc.av.img}}" alt=""></sc-if><sc-if value="{{pc.av.noImg}}" hint-placeholder-val="{{ true }}">{{pc.av.ini}}</sc-if></span><div class="stack" style="gap: 4px"><p class="eyebrow" style="margin: 0">Digital liner notes</p><h2 class="h1">{{pc.name}}</h2><p class="muted">{{pc.producersText}}</p></div></div>
+<sc-if value="{{pc.hasResults}}" hint-placeholder-val="{{ false }}"><section class="stack" style="gap: 8px"><h3 class="h3">Decided by the fans</h3><ul class="lres"><sc-for list="{{pc.results}}" as="r" hint-placeholder-count="2"><li><sc-if value="{{r.hasFile}}" hint-placeholder-val="{{ false }}"><img class="tthumb" src="{{r.file}}" alt=""></sc-if><span class="grow"><span class="muted sm">{{r.kind}}</span><strong>{{r.title}}</strong><span class="muted sm">{{r.sub}}</span></span><span class="lwin">{{r.winner}}</span></li></sc-for></ul></section></sc-if>
+<sc-if value="{{pc.hasCo}}" hint-placeholder-val="{{ false }}"><section class="stack" style="gap: 8px"><h3 class="h3">Co-Producers</h3><div class="cogrid"><sc-for list="{{pc.coproducers}}" as="p" hint-placeholder-count="2"><div class="coitem"><span class="av a56" style="background: {{p.av.bg}}"><sc-if value="{{p.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{p.av.img}}" alt=""></sc-if><sc-if value="{{p.av.noImg}}" hint-placeholder-val="{{ true }}">{{p.av.ini}}</sc-if></span><strong>{{p.name}}</strong><span class="badgechip sm"><svg class="medal" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h4l1 5-3 2zM17 2h-4l-1 5 3 2z" fill="#8b5cf6"></path><circle cx="12" cy="15" r="6.5" fill="#f5b942" stroke="#b7791f" stroke-width="1.2"></circle><path d="m12 11.6 1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z" fill="#fff8e1"></path></svg>Co-Producer</span></div></sc-for></div></section></sc-if>
+<sc-if value="{{pc.hasContrib}}" hint-placeholder-val="{{ false }}"><section class="stack" style="gap: 8px"><h3 class="h3">With thanks to {{pc.contribCount}}</h3><ul class="names"><sc-for list="{{pc.contributors}}" as="p" hint-placeholder-count="4"><li><span class="av a24" style="background: {{p.av.bg}}"><sc-if value="{{p.av.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{p.av.img}}" alt=""></sc-if><sc-if value="{{p.av.noImg}}" hint-placeholder-val="{{ true }}">{{p.av.ini}}</sc-if></span><span>{{p.name}}</span><span class="muted sm">{{p.countText}}</span></li></sc-for></ul></section></sc-if>
+<sc-if value="{{pc.hasGuests}}" hint-placeholder-val="{{ false }}"><p class="muted">{{pc.guestText}}</p></sc-if>
+</div></section></sc-if>
+</main>
+</sc-if>
+
 <!-- ================= LOADING + TOAST (live mode) ================= -->
 <sc-if value="{{loading}}" hint-placeholder-val="{{ false }}">
 <main class="splash" role="status" aria-live="polite"><img class="minilogo" src="assets/collabz-logo.png" alt="Collabz" style="height: 40px"><span class="spinner" aria-hidden="true"></span><p class="muted">Loading Collabz…</p></main>
@@ -1091,18 +1294,28 @@
 </template>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
-<script src="js/runtime.js?v=20261024a"></script>
+<script src="js/runtime.js?v=20261103a"></script>
 <script src="vendor/supabase.js"></script>
-<script src="js/config.js?v=20261024a"></script>
-<script src="js/games.js?v=20261024a"></script>
-<script src="js/app.js?v=20261024a"></script>
-<script src="js/live.js?v=20261024a"></script>
+<script src="js/config.js?v=20261103a"></script>
+<script src="js/games.js?v=20261103a"></script>
+<script src="vendor/qrcode.js?v=20261103a"></script>
+<script src="js/app.js?v=20261103a"></script>
+<script src="js/pilot.js?v=20261103a"></script>
+<script src="js/live.js?v=20261103a"></script>
 <script>
   // Live app by default (Supabase). Add ?screen=<name> to preview a screen with demo data,
   // e.g. index.html?screen=fan-showday (see README for the list).
-  var demoScreen = new URLSearchParams(location.search).get('screen');
-  mountDC(Component, document.getElementById('root'), document.getElementById('app-template'),
-    demoScreen ? { start: demoScreen } : { start: 'login', live: true });
+  // Public pages that work without logging in: ?vote=<id> (QR vote), ?stage=<id> (stage screen),
+  // ?credits=<creator id> (liner notes), ?consent=<token> (parent consent). Add &demo=1 for demo data.
+  // ?invite=<CODE> opens the sign-up form with the invite code filled in.
+  var q = new URLSearchParams(location.search);
+  var demoScreen = q.get('screen');
+  var props = demoScreen ? { start: demoScreen } : { start: 'login', live: true };
+  ['vote', 'stage', 'credits', 'consent'].forEach(function (k) {
+    if (q.get(k)) { props.pub = { kind: k, id: q.get(k) }; props.start = k; if (q.get('demo')) props.live = false; }
+  });
+  if (q.get('invite')) props.invite = q.get('invite').toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  mountDC(Component, document.getElementById('root'), document.getElementById('app-template'), props);
 </script>
 </body>
 </html>

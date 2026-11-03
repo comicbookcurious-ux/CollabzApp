@@ -12,15 +12,21 @@
   const orig = {};
   ['renderVals', 'doLogin', 'doSignup', 'doForgot', 'logout', 'suNext', 'pickGenre', 'toggleFollow', 'openChat', 'sendChat',
    'submit', 'cancelSub', 'claim', 'hideCard', 'pickWinner', 'unpickWinner', 'enterLottery', 'draw', 'claimLottery',
-   'saveCh', 'saveEv', 'saveLt', 'doConfirm', 'saveEdit', 'deleteAccount', 'postTopic', 'sendReply', 'suFile', 'mFile', 'ansFile', 'vote', 'acceptTerms', 'declineTerms', 'saveGm', 'gStart', 'gWin', 'gradeTrivia', 'gradeQuiz', 'pickGameWinner', 'unpickGameWinner', 'claimGamePrize']
+   'saveCh', 'saveEv', 'saveLt', 'doConfirm', 'saveEdit', 'deleteAccount', 'postTopic', 'sendReply', 'suFile', 'mFile', 'ansFile', 'vote', 'acceptTerms', 'declineTerms', 'saveGm', 'gStart', 'gWin', 'gradeTrivia', 'gradeQuiz', 'pickGameWinner', 'unpickGameWinner', 'claimGamePrize',
+   'electOption', 'castLiveVote', 'addManager', 'removeManager', 'createInvite', 'setInviteActive', 'saveSurvey', 'awardBadge', 'revokeBadge', 'giveConsent', 'setAuth']
     .forEach((k) => { orig[k] = P[k]; });
 
   const TABLES = ['profiles', 'artist_genres', 'follows', 'wallets', 'showday_events', 'challenges', 'submissions',
     'hidden_challenge_cards', 'lotteries', 'lottery_entries', 'lottery_winners', 'forum_threads', 'forum_replies', 'messages', 'notifications', 'submission_votes',
-    'games', 'game_questions', 'game_answers', 'game_plays', 'game_prize_winners'];
+    'games', 'game_questions', 'game_answers', 'game_plays', 'game_prize_winners',
+    'creator_managers', 'badges', 'guest_votes', 'invite_codes', 'app_admins', 'app_settings'];
   // tables added by later SQL files: the app still works (without that feature) until they are run
-  const OPTIONAL = ['submission_votes', 'games', 'game_questions', 'game_answers', 'game_plays', 'game_prize_winners'];
-  const emptyDb = () => ({ users: {}, challenges: [], events: [], lotteries: [], subs: [], entries: [], hidden: [], votes: [], forums: [], msgs: [], notifs: [], games: [], gplays: [] });
+  const OPTIONAL = ['submission_votes', 'games', 'game_questions', 'game_answers', 'game_plays', 'game_prize_winners',
+    'creator_managers', 'badges', 'guest_votes', 'invite_codes', 'app_admins', 'app_settings'];
+  const emptyDb = () => ({ users: {}, challenges: [], events: [], lotteries: [], subs: [], entries: [], hidden: [], votes: [], forums: [], msgs: [], notifs: [], games: [], gplays: [],
+    managers: [], badges: [], guestVotes: [], invites: [], admins: [], voteRewards: [], flags: {}, pending: [] });
+  const iso = (ms) => (ms ? new Date(ms).toISOString() : null);
+  const NEED8 = 'This needs the pilot database update. Run supabase/008_st_ate_of_jazz_pilot.sql in Supabase first.';
   const T = (s) => (s ? Date.parse(s) : 0);
   const must = (res) => { if (res && res.error) throw res.error; return res ? res.data : null; };
   const EMAIL = /^\S+@\S+\.\S+$/;
@@ -34,7 +40,9 @@
     const recovering = /type=recovery/.test(location.hash);
     if (!window.supabase || !window.COLLABZ_CONFIG) { this.setState({ screen: 'auth' }); return; }
     this.sb = window.supabase.createClient(COLLABZ_CONFIG.url, COLLABZ_CONFIG.anonKey);
+    if (this.props.pub) { publicBoot.call(this, this.props.pub); return; }
     this.setState({ screen: 'loading', db: emptyDb(), me: null });
+    loadSignupInfo.call(this, this.props.invite || '');
     this.sb.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') { this._recovering = true; this.setState({ screen: 'auth', auth: this.blankAuth('reset') }); }
       if (event === 'SIGNED_OUT') signedOut.call(this);
@@ -45,6 +53,52 @@
       else this.setState({ screen: 'auth' });
     }).catch(() => this.setState({ screen: 'auth' }));
   };
+
+  // ---------------------------------------------------------------- public pages (no login needed)
+  function mapLv(r) {
+    return {
+      c: { id: r.id, title: r.title, desc: r.description || '', type: r.type, options: r.options || [], imgs: r.option_images || [], audio: r.option_audio || [],
+        opens: r.opens_at ? T(r.opens_at) : null, closes: r.closes_at ? T(r.closes_at) : null, guest: !!r.allow_guest, elected: r.elected_option || null },
+      artist: { id: r.artist_id, name: r.artist_name, avatar: r.artist_avatar, theme: r.theme },
+      rows: (r.tally || []).map((t, i) => ({ label: t.option, i: i, n: t.count })), total: r.total || 0, guests: r.guests || 0
+    };
+  }
+  async function pollVote(id) {
+    try {
+      const r = await rpc.call(this, 'live_vote_info', { p_challenge_id: id });
+      if (r && r.now) this._skew = T(r.now) - Date.now();
+      this.setState({ lv: mapLv(r), lvErr: null });
+    } catch (e) { if (!this.state.lv) this.setState({ lvErr: (e && e.message) || 'This vote was not found.' }); }
+  }
+  function publicBoot(pub) {
+    this.setState({ screen: pub.kind, pub: pub, db: emptyDb(), me: null });
+    if (pub.kind === 'vote' || pub.kind === 'stage') {
+      pollVote.call(this, pub.id);
+      this._poll = setInterval(() => { if (!document.hidden) pollVote.call(this, pub.id); }, pub.kind === 'stage' ? 2000 : 4000);
+      if (pub.kind === 'vote') {
+        // Logged in already (same browser)? Then the vote counts as a normal fan vote and earns coins.
+        this.sb.auth.getSession().then(async ({ data }) => {
+          const u = data && data.session && data.session.user; if (!u) return;
+          const p = must(await this.sb.from('profiles').select('id, role, display_name').eq('id', u.id).single());
+          const mine = must(await this.sb.from('submissions').select('answer').eq('challenge_id', pub.id).eq('fan_id', u.id));
+          this.setState({ voteMe: { id: p.id, role: p.role, name: p.display_name }, voteMine: mine && mine[0] ? mine[0].answer : '' });
+        }).catch(() => {});
+      }
+    }
+    if (pub.kind === 'consent') rpc.call(this, 'consent_info', { p_token: pub.id }).then((r) => this.setState({ csInfo: r || null }), () => this.setState({ csInfo: null }));
+    if (pub.kind === 'credits') rpc.call(this, 'liner_notes', { p_artist: pub.id }).then((r) => this.setState({ pcNotes: mapNotes(r) }), (e) => this.setState({ pcErr: (e && e.message) || 'Not found' }));
+  }
+  function mapNotes(r) {
+    return { artist: r.artist, producers: r.producers || [], results: r.results || [], coproducers: r.coproducers || [], contributors: r.contributors || [], guestVotes: r.guest_votes || 0 };
+  }
+  // Invite-only setting and invite details for the sign-up form
+  async function loadSignupInfo(code) {
+    try {
+      const r = await rpc.call(this, 'signup_settings', { p_code: code || null });
+      this.setState({ signupInfo: { inviteOnly: !!r.invite_only, code: (code || '').toUpperCase(), artistName: r.artist_name || '', codeError: r.code_error || '' } });
+      return r;
+    } catch (e) { return null; }   // 008 not run yet
+  }
 
   function signedOut() {
     if (this.chan) { this.sb.removeChannel(this.chan); this.chan = null; }
@@ -81,7 +135,8 @@
     if (this.chan) return;
     const schedule = () => { clearTimeout(this._rt); this._rt = setTimeout(() => reload.call(this).catch(() => {}), 400); };
     this.chan = this.sb.channel('collabz-live');
-    ['messages', 'notifications', 'submissions', 'submission_votes', 'challenges', 'lottery_winners', 'lottery_entries', 'forum_threads', 'forum_replies', 'follows', 'showday_events', 'lotteries', 'wallets', 'games', 'game_plays', 'game_prize_winners']
+    ['messages', 'notifications', 'submissions', 'submission_votes', 'challenges', 'lottery_winners', 'lottery_entries', 'forum_threads', 'forum_replies', 'follows', 'showday_events', 'lotteries', 'wallets', 'games', 'game_plays', 'game_prize_winners',
+     'guest_votes', 'badges', 'creator_managers', 'invite_codes']
       .forEach((t) => this.chan.on('postgres_changes', { event: '*', schema: 'public', table: t }, schedule));
     this.chan.subscribe();
   }
@@ -102,6 +157,7 @@
       d[t] = must(res[i]) || [];
     });
     const db = emptyDb();
+    this.v8 = !res[TABLES.indexOf('creator_managers')].error;
     d.profiles.forEach((p) => {
       const genres = d.artist_genres.filter((g) => g.artist_id === p.id).sort((a, b) => T(a.created_at) - T(b.created_at)).map((g) => g.genre_id);
       const w = d.wallets.find((x) => x.user_id === p.id);
@@ -114,12 +170,27 @@
         socials: { facebook: p.facebook_url || '', instagram: p.instagram_url || '', x: p.x_url || '', tiktok: p.tiktok_url || '', youtube: p.youtube_url || '' },
         followers: d.follows.filter((f) => f.following_id === p.id).map((f) => f.follower_id),
         following: d.follows.filter((f) => f.follower_id === p.id).map((f) => f.following_id),
-        coins: { silver: w ? w.silver : 0, gold: w ? w.gold : 0, green: w ? w.green : 0 }, tickets: w ? w.tickets : 0
+        coins: { silver: w ? w.silver : 0, gold: w ? w.gold : 0, green: w ? w.green : 0 }, tickets: w ? w.tickets : 0,
+        banner: p.banner_url || '', survey: p.survey_url || '', restricted: !!p.restricted
       };
     });
     db.events = d.showday_events.map((e) => ({ id: e.id, aid: e.artist_id, tag: e.tag, title: e.title, desc: e.description || '', date: e.event_date || '', time: e.event_time ? String(e.event_time).slice(0, 5) : '', venue: e.venue || '', at: T(e.created_at) }));
-    db.challenges = d.challenges.map((c) => ({ id: c.id, aid: c.artist_id, ev: c.event_id, title: c.title, desc: c.description || '', type: c.type, options: c.options || [], imgs: c.option_images || [], thumb: c.thumbnail_url || '', rt: c.reward_coin, rw: c.reward_amount, max: c.max_submissions, winner: c.winner_id, claimed: c.winner_claimed, at: T(c.created_at) }));
-    db.subs = d.submissions.map((s) => ({ id: s.id, cid: s.challenge_id, uid: s.fan_id, answer: s.answer || '', file: s.media_url || null, at: T(s.created_at) }));
+    db.challenges = d.challenges.map((c) => ({ id: c.id, aid: c.artist_id, ev: c.event_id, title: c.title, desc: c.description || '', type: c.type, options: c.options || [], imgs: c.option_images || [], thumb: c.thumbnail_url || '', rt: c.reward_coin, rw: c.reward_amount, max: c.max_submissions, winner: c.winner_id, claimed: c.winner_claimed, at: T(c.created_at),
+      audio: c.option_audio || [], opens: c.opens_at ? T(c.opens_at) : null, closes: c.closes_at ? T(c.closes_at) : null, guest: !!c.allow_guest, elected: c.elected_option || null, electedAt: c.elected_at ? T(c.elected_at) : null }));
+    db.subs = d.submissions.map((s) => ({ id: s.id, cid: s.challenge_id, uid: s.fan_id, answer: s.answer || '', file: s.media_url || null, at: T(s.created_at), hash: s.media_hash || null, dup: s.duplicate_of || null }));
+    db.managers = d.creator_managers.map((m) => ({ aid: m.artist_id, mid: m.manager_id, at: T(m.added_at) }));
+    db.badges = d.badges.map((b) => ({ uid: b.user_id, aid: b.artist_id, label: b.label, at: T(b.awarded_at) }));
+    db.guestVotes = d.guest_votes.map((g) => ({ cid: g.challenge_id, answer: g.answer, at: T(g.created_at) }));
+    db.invites = d.invite_codes.map((i) => ({ code: i.code, aid: i.artist_id, label: i.label || '', max: i.max_uses, uses: i.uses, exp: i.expires_at ? T(i.expires_at) : null, active: i.active, at: T(i.created_at) }));
+    db.admins = d.app_admins.map((a) => a.user_id);
+    db.flags = { inviteOnly: d.app_settings.some((x) => x.key === 'invite_only' && (x.value === true || x.value === 'true')) };
+    const myId = this.state.me;
+    if (this.v8 && myId && db.admins.includes(myId)) {
+      try { db.pending = ((await sb.rpc('pending_parent_consents')).data || []).map((r) => ({ id: r.user_id, name: r.display_name, email: r.email || '', parentEmail: r.parent_email || '', token: r.consent_token, at: T(r.created_at) })); } catch (e) { db.pending = []; }
+    }
+    if (this.v8 && myId && db.users[myId] && db.users[myId].restricted) {
+      try { const st = (await sb.rpc('my_age_status')).data; if (st) db.users[myId].parentEmail = st.parent_email || ''; } catch (e) {}
+    }
     db.hidden = d.hidden_challenge_cards.map((h) => ({ uid: h.user_id, cid: h.challenge_id }));
     db.votes = d.submission_votes.map((v) => ({ sid: v.submission_id, uid: v.user_id, v: v.value }));
     db.lotteries = d.lotteries.map((l) => {
@@ -201,9 +272,18 @@
     if (!nm) return this.authErr('Add your name.');
     if (!EMAIL.test(em)) return this.authErr('Enter a valid email address.');
     if (a.password.length < 6) return this.authErr('Your password needs at least 6 characters.');
+    const chk = this.signupCheck(a); if (chk) return this.authErr(chk);
+    const code = (a.invite || '').trim().toUpperCase();
     this.setState({ auth: Object.assign({}, a, { error: '', info: 'Creating your account…' }) });
-    const { data, error } = await this.sb.auth.signUp({ email: em, password: a.password, options: { data: { role: a.role, display_name: nm }, emailRedirectTo: here() } });
-    if (error) return this.authErr(error.message);
+    const st = await loadSignupInfo.call(this, code);
+    if (st && st.invite_only && !code) return this.authErr('Collabz is invite-only during the pilot. Enter the invite code from your invitation.');
+    if (st && code && st.code_error) return this.authErr(st.code_error);
+    const kid = this.ageOf(a.dob) < 13;
+    const meta = { role: a.role, display_name: nm, birth_date: a.dob };
+    if (kid) meta.parent_email = (a.parent || '').trim().toLowerCase();
+    if (code) meta.invite_code = code;
+    const { data, error } = await this.sb.auth.signUp({ email: em, password: a.password, options: { data: meta, emailRedirectTo: here() } });
+    if (error) return this.authErr(/database error/i.test(error.message) ? 'We couldn\u2019t create your account. Check your invite code and date of birth, then try again.' : error.message);
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return this.authErr('An account with this email already exists. Log in instead.');
     if (data.session) { afterSignIn.call(this, data.user); return; }
     this.setState({ auth: Object.assign(this.blankAuth('login'), { email: em, info: 'Almost there! We sent a confirmation link to ' + em + '. Tap it, then log in here.' }) });
@@ -287,6 +367,8 @@
   wrap('vote', function (sid, v) {
     const uid = this.state.me;
     const cur = (this.state.db.votes || []).find((x) => x.sid === sid && x.uid === uid);
+    // With 008: one server call that also pays 1 silver coin for the first vote on each entry
+    if (this.v8) return run.call(this, () => rpc.call(this, 'cast_vote', { p_submission_id: sid, p_value: v }), (out) => { if (out && out.coins) setTimeout(() => this.flash('+1 silver coin for voting'), 0); return null; });
     run.call(this, async () => {
       must(await this.sb.from('submission_votes').delete().eq('submission_id', sid).eq('user_id', uid));
       if (!cur || cur.v !== v) must(await this.sb.from('submission_votes').insert({ submission_id: sid, user_id: uid, value: v }));
@@ -317,7 +399,9 @@
     run.call(this, async () => {
       let url = null;
       if (media) url = await upload.call(this, 'submissions', this.files['ans:' + cid]);
-      await rpc.call(this, 'submit_challenge', { p_challenge_id: cid, p_answer: media ? null : this.ansValue(c, d), p_media_url: url });
+      const args = { p_challenge_id: cid, p_answer: media ? null : this.ansValue(c, d), p_media_url: url };
+      if (this.v8 && media && d.hash) args.p_media_hash = d.hash;   // exact-duplicate image check
+      await rpc.call(this, 'submit_challenge', args);
       delete this.files['ans:' + cid];
     }, { ans: ans, toast: null, pop: this.mkPop(c.rt, '+' + c.rw, 'Reward earned!', this.plural(c.rw, c.rt + ' coin', c.rt + ' coins') + ' for taking part in "' + c.title + '"') });
   });
@@ -355,36 +439,42 @@
 
   // ---------------------------------------------------------------- create / edit / delete
   wrap('saveCh', function () {
-    const m = this.state.modal;
-    // Option slots the artist filled; remember which slot each came from so its image file can be found
-    const slots = [0, 1, 2, 3].filter((i) => (m['o' + i] || '').trim() || m['i' + i]);
-    const mo = this.mcOptions(m), opts = mo.labels;
+    const m = this.state.modal, mo = this.mcOptions(m), opts = mo.labels, choice = m.type === 'mc' || m.type === 'listen';
+    const err = this.chErr(m, mo); if (err) return this.setM('err', err);
+    if (!this.v8 && (m.type === 'listen' || m.opens || m.closes || m.guest)) return this.setM('err', 'Listen and vote, voting windows and QR voting need the pilot database update (supabase/008_st_ate_of_jazz_pilot.sql).');
     const rw = parseInt(m.rw, 10), max = parseInt(m.max, 10);
-    if (!m.title.trim()) return this.setM('err', 'Give the challenge a title.');
-    if (m.type === 'mc' && opts.length < 2) return this.setM('err', 'Add at least two answer options (text, an image, or both).');
-    if (m.type === 'mc' && new Set(opts.map((x) => x.toLowerCase())).size !== opts.length) return this.setM('err', 'Each answer option needs a different label.');
-    if (!(rw >= 1)) return this.setM('err', 'The reward needs to be at least 1 coin.');
-    if (!(max >= 1)) return this.setM('err', 'Allow at least 1 submission.');
-    const row = { title: m.title.trim(), description: m.desc.trim(), type: m.type, options: m.type === 'mc' ? opts : [], reward_coin: m.rt, reward_amount: rw, max_submissions: max };
-    const withImgs = m.type === 'mc' && mo.imgs.some(Boolean);
+    const row = { title: m.title.trim(), description: m.desc.trim(), type: m.type, options: choice ? opts : [], reward_coin: m.rt, reward_amount: rw, max_submissions: max };
+    if (this.v8) Object.assign(row, { opens_at: iso(this.fromLocal(m.opens)), closes_at: iso(this.fromLocal(m.closes)), allow_guest: choice && !!m.guest });
+    const withImgs = m.type === 'mc' && mo.imgs.some(Boolean), listen = m.type === 'listen';
+    const old = m.id ? (this.state.db.challenges.find((x) => x.id === m.id) || {}) : {};
     const newThumb = (m.thumb || '').startsWith('blob:') && this.files['m:thumb'];
-    const hadThumb = m.id && !!((this.state.db.challenges.find((x) => x.id === m.id) || {}).thumb);
-    if (withImgs || newThumb) toast.call(this, 'Uploading images…', true);
+    const newAudio = listen && mo.slots.some((i) => (m['a' + i] || '').startsWith('blob:'));
+    if (withImgs || newThumb || newAudio) toast.call(this, newAudio ? 'Uploading audio clips…' : 'Uploading images…', true);
+    const owner = m.id ? old.aid : this.actor();
     run.call(this, async () => {
       if (withImgs) {
         const urls = [];
-        for (let k = 0; k < slots.length; k++) {
-          const i = slots[k], v = m['i' + i] || '', f = this.files['m:i' + i];
+        for (let k = 0; k < mo.slots.length; k++) {
+          const i = mo.slots[k], v = m['i' + i] || '', f = this.files['m:i' + i];
           urls.push(v.startsWith('blob:') && f ? await upload.call(this, 'submissions', f) : v);
         }
         row.option_images = urls;
-      } else if (m.id && ((this.state.db.challenges.find((x) => x.id === m.id) || {}).imgs || []).length) row.option_images = [];
+      } else if (m.id && (old.imgs || []).length) row.option_images = [];
+      if (listen) {
+        const urls = [];
+        for (let k = 0; k < mo.slots.length; k++) {
+          const i = mo.slots[k], v = m['a' + i] || '', f = this.files['m:a' + i];
+          urls.push(v.startsWith('blob:') && f ? await upload.call(this, 'submissions', f) : v);
+        }
+        row.option_audio = urls;
+      } else if (this.v8 && m.id && (old.audio || []).length) row.option_audio = [];
       // thumbnail_url is only sent when used, so the app keeps working before 006_challenge_thumbnail.sql is run
       if (newThumb) { row.thumbnail_url = await upload.call(this, 'submissions', this.files['m:thumb']); delete this.files['m:thumb']; }
       else if (m.thumb) row.thumbnail_url = m.thumb;
-      else if (hadThumb) row.thumbnail_url = '';
+      else if (old.thumb) row.thumbnail_url = '';
+      [0, 1, 2, 3].forEach((i) => { delete this.files['m:a' + i]; });
       if (m.id) must(await this.sb.from('challenges').update(row).eq('id', m.id));
-      else must(await this.sb.from('challenges').insert(Object.assign({ artist_id: this.state.me, event_id: m.ev || null }, row)));
+      else must(await this.sb.from('challenges').insert(Object.assign({ artist_id: owner, event_id: m.ev || null }, row)));
     }, { modal: null, toast: null });
   });
 
@@ -401,7 +491,7 @@
         prize_type: d.prize.type, prize_amount: d.prize.amount, prize_text: d.prize.text, prize_image_url: pimg || '', winner_count: d.winners };
       let id = m.id;
       if (id) must(await this.sb.from('games').update(row).eq('id', id));
-      else id = must(await this.sb.from('games').insert(Object.assign({ artist_id: this.state.me, kind: d.kind }, row)).select('id').single()).id;
+      else id = must(await this.sb.from('games').insert(Object.assign({ artist_id: this.actor(), kind: d.kind }, row)).select('id').single()).id;
       if (d.kind === 'trivia' || d.kind === 'quiz') await rpc.call(this, 'save_game_questions', { p_game: id, p_questions: d.qs.map((q) => ({ q: q.q, opts: q.opts, ans: q.ans })) });
       delete this.files['m:img']; delete this.files['m:pimg'];
     }, { modal: null, toast: null });
@@ -429,7 +519,7 @@
     const row = { tag: m.tag, title: m.title.trim(), description: m.desc.trim(), event_date: m.date, event_time: m.time || null, venue: m.venue.trim() };
     run.call(this, async () => {
       if (m.id) must(await this.sb.from('showday_events').update(row).eq('id', m.id));
-      else must(await this.sb.from('showday_events').insert(Object.assign({ artist_id: this.state.me }, row)));
+      else must(await this.sb.from('showday_events').insert(Object.assign({ artist_id: this.actor() }, row)));
     }, { modal: null });
   });
 
@@ -441,13 +531,15 @@
     const row = { title: m.title.trim(), description: m.desc.trim(), tickets_per_entry: cost, winner_count: w, draw_date: m.date || null };
     run.call(this, async () => {
       if (m.id) must(await this.sb.from('lotteries').update(row).eq('id', m.id));
-      else must(await this.sb.from('lotteries').insert(Object.assign({ artist_id: this.state.me }, row)));
+      else must(await this.sb.from('lotteries').insert(Object.assign({ artist_id: this.actor() }, row)));
     }, { modal: null });
   });
 
   wrap('doConfirm', function () {
     const m = this.state.modal, id = m.arg;
     if (m.action === 'cancelSub') return this.cancelSub(id);
+    if (m.action === 'elect') return this.electOption(id, m.opt);
+    if (m.action === 'rmMgr') return this.removeManager(id);
     const table = { delCh: 'challenges', delEv: 'showday_events', delLt: 'lotteries', delGm: 'games' }[m.action];
     if (!table) return this.setState({ modal: null });
     run.call(this, async () => { must(await this.sb.from(table).delete().eq('id', id)); }, { modal: null, open: null });
@@ -465,10 +557,14 @@
       if (u.role === 'artist') {
         upd.theme = m.theme;
         if (this.files['m:video']) upd.welcome_video_url = await upload.call(this, 'welcome-videos', this.files['m:video']);
+        if (this.v8) {
+          if ((m.banner || '').startsWith('blob:') && this.files['m:banner']) upd.banner_url = await upload.call(this, 'avatars', this.files['m:banner']);
+          else if (!m.banner && u.banner) upd.banner_url = null;
+        }
       }
       must(await this.sb.from('profiles').update(upd).eq('id', uid));
       if (u.role === 'artist') await rpc.call(this, 'set_my_genres', { p_genres: m.genres });
-      delete this.files['m:avatar']; delete this.files['m:video'];
+      delete this.files['m:avatar']; delete this.files['m:video']; delete this.files['m:banner'];
       if (em !== (u.email || '').toLowerCase()) {
         must(await this.sb.auth.updateUser({ email: em }, { emailRedirectTo: here() }));
         return 'email';
@@ -486,6 +582,88 @@
       signedOut.call(this);
       toast.call(this, 'Your account has been deleted.', true);
     } catch (e) { toast.call(this, e); }
+  });
+
+  // ---------------------------------------------------------------- St-ate of Jazz pilot
+  const need8 = function () { if (this.v8) return true; toast.call(this, NEED8); return false; };
+  wrap('electOption', function (cid, label) {
+    if (!need8.call(this)) return;
+    run.call(this, () => rpc.call(this, 'elect_option', { p_challenge_id: cid, p_option: label }), { modal: null });
+  });
+  wrap('addManager', function () {
+    if (!need8.call(this)) return;
+    const em = ((this.state.pv || {}).mEmail || '').trim();
+    if (!EMAIL.test(em)) return this.setPv({ err: 'Enter the email address they signed up with.' });
+    run.call(this, () => rpc.call(this, 'add_manager', { p_artist: this.state.viewing, p_email: em }), () => {
+      setTimeout(() => this.flash('Manager added.'), 0);
+      return { pv: Object.assign({}, this.state.pv, { mEmail: '', err: '' }) };
+    });
+  });
+  wrap('removeManager', function (mid) {
+    const A = this.state.viewing, self = mid === this.state.me;
+    run.call(this, () => rpc.call(this, 'remove_manager', { p_artist: A, p_manager: mid }), () => {
+      if (self) setTimeout(() => this.openArtist(A, 'challenges'), 0);
+      return { modal: null };
+    });
+  });
+  wrap('createInvite', function () {
+    if (!need8.call(this)) return;
+    const d = this.state.pv || {}, max = parseInt(d.iMax || '40', 10), days = parseInt(d.iDays || '30', 10);
+    if (!(max >= 1 && max <= 1000)) return this.setPv({ err: 'An invite can be used 1 to 1000 times.' });
+    run.call(this, () => rpc.call(this, 'create_invite', { p_artist: this.state.viewing, p_label: (d.iLabel || '').trim(), p_max_uses: max, p_days: days >= 0 ? days : 30 }), (code) => {
+      setTimeout(() => this.flash('Invite link created: ' + code), 0);
+      return { pv: Object.assign({}, this.state.pv, { iLabel: '', err: '' }) };
+    });
+  });
+  wrap('setInviteActive', function (code, on) { run.call(this, () => rpc.call(this, 'set_invite_active', { p_code: code, p_active: on })); });
+  wrap('saveSurvey', function () {
+    if (!need8.call(this)) return;
+    const url = ((this.state.pv || {}).survey || '').trim();
+    if (url && !/^https:\/\/\S+$/i.test(url)) return this.setPv({ err: 'The survey link needs to start with https://' });
+    run.call(this, () => rpc.call(this, 'set_survey_url', { p_artist: this.state.viewing, p_url: url }), () => {
+      setTimeout(() => this.flash(url ? 'Survey link saved. Fans see it on your page.' : 'Survey link removed.'), 0);
+      return { pv: Object.assign({}, this.state.pv, { survey: undefined, err: '' }) };
+    });
+  });
+  wrap('awardBadge', function (uid) { if (need8.call(this)) run.call(this, () => rpc.call(this, 'award_badge', { p_artist: this.state.viewing, p_fan: uid, p_label: this.badgeLabel(this.state.viewing) })); });
+  wrap('revokeBadge', function (uid) { if (need8.call(this)) run.call(this, () => rpc.call(this, 'revoke_badge', { p_artist: this.state.viewing, p_fan: uid })); });
+  // QR vote page: logged-in fans vote normally (and earn coins); everyone else votes as a guest, one vote per phone
+  wrap('castLiveVote', async function () {
+    const s = this.state, L = this.liveInfo((s.pub || {}).id), a = s.vpick;
+    if (!L) return;
+    if (!a) return this.setState({ verr: 'Pick an option first.' });
+    this.setState({ vbusy: true, verr: '' });
+    try {
+      if (s.voteMe && s.voteMe.role === 'fan') {
+        await rpc.call(this, 'submit_challenge', { p_challenge_id: L.c.id, p_answer: a });
+        this.setState({ voteMine: a });
+        this.flash('Vote counted. Coins added to your wallet.');
+        await pollVote.call(this, L.c.id);
+      } else {
+        const r = await rpc.call(this, 'guest_vote', { p_challenge_id: L.c.id, p_device: this.deviceId(), p_answer: a });
+        this.rememberGuestVote(L.c.id, a);
+        this.setState({ lv: mapLv(r) });
+      }
+      this.setState({ vpick: null, vbusy: false });
+    } catch (e) {
+      const msg = (e && e.message) || 'Your vote didn\u2019t go through. Try again.';
+      if (/already/.test(msg)) this.rememberGuestVote(L.c.id, 'your earlier choice');
+      this.setState({ verr: msg, vbusy: false });
+    }
+  });
+  wrap('giveConsent', async function () {
+    const d = this.state.cs || {}, tok = (this.state.pub || {}).id;
+    if ((d.name || '').trim().length < 2) return this.setState({ cs: Object.assign({}, d, { err: 'Type your full name to give consent.' }) });
+    if (!d.agree) return this.setState({ cs: Object.assign({}, d, { err: 'Tick the box to confirm.' }) });
+    try {
+      const r = await rpc.call(this, 'give_parent_consent', { p_token: tok, p_parent_name: d.name.trim() });
+      this.setState({ csInfo: r, cs: Object.assign({}, d, { err: '', done: true }) });
+    } catch (e) { this.setState({ cs: Object.assign({}, d, { err: (e && e.message) || 'Something went wrong. Please try again.' }) }); }
+  });
+  // Look up the invite (who it's from) shortly after the code is typed
+  wrap('setAuth', function (k, v) {
+    orig.setAuth.call(this, k, v);
+    if (k === 'invite') { clearTimeout(this._invT); this._invT = setTimeout(() => loadSignupInfo.call(this, v), 500); }
   });
 
   // ---------------------------------------------------------------- community

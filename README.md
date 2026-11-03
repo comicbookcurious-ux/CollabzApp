@@ -7,7 +7,7 @@ A static web app (HTML, CSS and JavaScript) backed by **Supabase** for accounts,
 ## Supabase
 
 - Connection settings live in `js/config.js` (project URL and the public anon key; never put the service_role key there).
-- The database is created by `supabase/schema.sql` (run once in Supabase → SQL Editor), then `supabase/002_submission_votes.sql` for upvotes/downvotes on image and video submissions, `supabase/003_terms_agreement.sql` for the sign-up agreement, `supabase/004_challenge_text_and_image_options.sql` for text-answer challenges and image answer options, `supabase/005_games.sql` for Games, `supabase/006_challenge_thumbnail.sql` for challenge thumbnails, and `supabase/007_black_theme.sql` for the Black theme.
+- The database is created by `supabase/schema.sql` (run once in Supabase → SQL Editor), then `supabase/002_submission_votes.sql` for upvotes/downvotes on image and video submissions, `supabase/003_terms_agreement.sql` for the sign-up agreement, `supabase/004_challenge_text_and_image_options.sql` for text-answer challenges and image answer options, `supabase/005_games.sql` for Games, `supabase/006_challenge_thumbnail.sql` for challenge thumbnails, `supabase/007_black_theme.sql` for the Black theme, and `supabase/008_st_ate_of_jazz_pilot.sql` for the St-ate of Jazz pilot features (see below). Run them in that order; each is safe to run again.
 - `js/live.js` connects the screens to Supabase: sign up / log in / password reset, onboarding, challenges, Showday, lotteries, scoreboard, follows, community, chat and notifications. Uploads go to the `avatars`, `welcome-videos` and `submissions` storage buckets.
 - In Supabase → Authentication → URL Configuration, set **Site URL** to your live address (e.g. your Cloudflare URL) and add it under **Redirect URLs**, so confirmation and password-reset emails link back to the app.
 
@@ -32,6 +32,10 @@ The live app starts at the real login. To preview any screen with built-in demo 
 | Fan | `fan-challenges`, `fan-showday`, `fan-lottery`, `fan-won`, `coin-pop`, `light-theme` |
 | Games | `games` (fan), `owner-games`, `owner-game-new`, `play-trivia`, `play-quiz`, `play-solitaire`, `play-memory`, `play-hilo`, `play-blackjack`, `play-golf`, `play-puzzle` |
 | Social | `community`, `profile`, `chat`, `notifications`, `games` |
+| St-ate of Jazz pilot | `jazz-fan` (listen and vote), `jazz-fan-titles` (vote on title ideas), `jazz-producer` (live tally, Elect winner), `jazz-titles` (Top 5, net score), `jazz-cover-art` (duplicate image flag), `jazz-live` (gig vote), `jazz-qr` (QR code), `jazz-new-listen` (create Listen and vote), `jazz-producer-tools` (managers, invites, survey, badges), `jazz-credits` (liner notes), `jazz-restricted` (under-13 waiting for consent), `jazz-admin` (parent consent list), `signup-invite`, `signup-kid` |
+| Pages without login | `vote`, `stage`, `consent`, `credits` (or `?vote=j4&demo=1`, `?stage=j4&demo=1`, `?consent=demo-consent-token&demo=1`, `?credits=a6&demo=1`) |
+
+In the pilot demo data, Steve (`m1`) and Nate (`m2`) manage St-ate of Jazz (`a6`), Jess (`f1`) is a fan, Mia (`f5`) is an under-13 waiting for consent and Devin (`d1`) is the admin.
 
 ## What's included
 
@@ -47,6 +51,7 @@ The live app starts at the real login. To preview any screen with built-in demo 
 - Community forum with replies, people search, chat, notifications, follow/unfollow, followers and following lists
 - Profiles with recent activity, edit profile and delete account (with typed confirmation)
 - 8 artist page themes (5 dark including Black, 3 light), with text colours that adjust automatically
+- St-ate of Jazz pilot features: co-managers, banner image, Listen and vote, voting windows, live tallies, Elect winner, net score and Top 5, duplicate image flag, coins for voting, QR live votes and the stage screen, Co-Producer badges, digital liner notes, invite-only sign-up, age check with parent consent, and the survey link (details below)
 
 ## Project structure
 
@@ -55,13 +60,14 @@ index.html          Page shell and the screen markup (inside <template id="app-t
 css/styles.css      All styles, including the 7 themes and animations
 js/games.js         Game rules (solitaire, card games, puzzle): pure logic, no UI
 js/app.js           App logic: state, demo data, actions and the values each screen shows
+js/pilot.js         St-ate of Jazz pilot features (extends app.js; demo data for the pilot)
 js/live.js          Supabase connection: swaps each action for a Supabase call in live mode
 js/config.js        Supabase project URL and public anon key
 js/runtime.js       Small renderer that turns the template into React elements
-vendor/             React 18.3.1 and supabase-js 2.45.4, so no CDN is needed
+vendor/             React 18.3.1, supabase-js 2.45.4 and qrcode-generator 1.4.4 (MIT), so no CDN is needed
 supabase/schema.sql Database setup (tables, security rules, coin and lottery logic, storage)
 wrangler.jsonc      Cloudflare settings (.assetsignore keeps README/SQL off the public site)
-assets/             Logo, icon, coins and favicons
+assets/             Logo, icon, coins and favicons (assets/pilot: St-ate of Jazz demo photo, banner, audio and cover art)
 favicon.ico
 ```
 
@@ -121,3 +127,53 @@ Artists create games on the **Games** tab; fans play them as often as they like.
 **Fair play.** Trivia and Quiz answers are stored in `game_answers`, which only the game's artist can read; answers are graded by the server (`answer_trivia`, `submit_quiz`), including the trivia timer. Card games and puzzles run in the browser and report the win with `finish_game`, which needs a started game and can only be used once per start.
 
 **XP.** Winning a game for the first time is worth 15 XP; being picked as a prize winner is worth 50 XP. The artist can **Try it** to preview their own game; previews aren't recorded.
+
+## St-ate of Jazz pilot
+
+### Set it up (once)
+
+1. In Supabase → SQL Editor, run `supabase/008_st_ate_of_jazz_pilot.sql`.
+2. In the app, sign up these accounts with their own emails:
+   - **St-ate of Jazz** as an **ARTIST**. In onboarding pick **Music**, upload the photo; then *Edit profile* → upload the **banner image** and the welcome video.
+   - **Steve**, **Nate** and **Devin** as **FAN** (fan accounts don't show up as separate artists).
+3. Open `supabase/st_ate_of_jazz_setup.sql`, change the four emails (and the survey link if you have it) at the top, then run it in the SQL Editor. It:
+   - fills in the St-ate of Jazz bio and Music genre,
+   - makes Steve and Nate **managers** of the account,
+   - makes Devin an **admin** (he sees under-13s waiting for parent consent),
+   - creates invite codes `JAZZ-LISTEN` (Group A, 30 fans), `JAZZ-ADMIN` (Group B, 5) and `JAZZ-LIVE` (Group C, 5 at the gig),
+   - switches sign-up to **invite-only**.
+4. Send the invite links: `https://<your app address>/?invite=JAZZ-LISTEN` (and the other two codes). People who sign up with a link follow St-ate of Jazz automatically.
+
+Managers can also be added later in the app: the St-ate of Jazz account → **Producer** tab → *Managers*. More invite links: same tab → *Invite links*. To turn invite-only off: `update public.app_settings set value = 'false' where key = 'invite_only';`
+
+### What each feature does
+
+| # | Feature | Where |
+|---|---------|-------|
+| 1 | St-ate of Jazz creator account with photo, **banner**, bio and Music genre | Sign-up + Edit profile (banner) |
+| 2 | **Co-managers**: Steve and Nate log in as themselves and run the account (post, see live votes, elect winners, give badges). They also get the account's notifications. | Producer tab → Managers |
+| 3 | **Audio upload**: MP3 (or M4A/WAV/OGG) clips up to 30 seconds and 15 MB, played in the app | Create challenge → CHOOSE → Audio clips |
+| 4 | **Listen and vote** challenge type (Take A / Take B …, 2–4 clips) | same |
+| 5 | **Voting windows**: opens/closes date and time (or quick 1 h / 3 h / 24 h / 3 days), live countdown, closes by itself (the server refuses late votes) | Create challenge → Voting window |
+| 6 | **Live vote counts** for producers, updating without a refresh | Challenge card (owner) and Scoreboard → Live results |
+| 7 | **Net score** (up minus down) on every text, image and video entry, sortable | Scoreboard |
+| 8 | **Top 5 shortlist** by net score (duplicates and hidden entries left out) | Scoreboard |
+| 9 | **Exact-duplicate images** flagged (same file as an earlier entry for the same creator) | Scoreboard, notification to the producers |
+| 10 | **QR code** per live vote (download it or put it on the stage screen) | Challenge card / Scoreboard → QR code |
+| 11 | **Quick QR voting** without sign-up, one vote per phone (switch on per challenge) | `?vote=<challenge id>` |
+| 12 | **Stage screen**: full-screen live results with the QR code | `?stage=<challenge id>` |
+| 13 | **Elect winner** for multiple-choice and Listen and vote: locks the vote, closes it and tells everyone who voted. Text, image and video entries: *Elect winner* on an entry (that fan claims 1 green coin) | Scoreboard |
+| 14 | **Coins for voting**: the challenge reward for each vote in Listen and vote / multiple choice, and 1 silver coin for the first vote on each title, artwork or video entry | automatic |
+| 15 | **St-ate of Jazz Co-Producer badge** for top contributors (one by one, or "Give the badge to the top 5") | Producer tab → badges; shows on the fan's profile |
+| 16 | **Digital liner notes**: decided results, Co-Producers and everyone who took part | Credits tab; public page `?credits=<creator id>` |
+| 17 | **Age check** at sign-up. Under 13: a parent's email is required; until a parent gives consent their entries, topics and replies are hidden from other fans, and messages are off. Devin (admin) emails the parent their consent link from the Producer tab or his profile; the parent opens `?consent=<token>` and agrees | Sign-up, Producer tab / profile (admin) |
+| 18 | **Invite-only** sign-up with invite links or codes | Sign-up, Producer tab → Invite links |
+| 19 | **Survey link**: fans see a "Take the survey" card on the creator page | Producer tab → Feedback survey |
+
+### Good to know
+
+- Everything still works before `008` is run; the pilot features just stay off (the app tells producers to run it).
+- One vote per phone is remembered in the phone's browser. Someone who clears their browser data or uses a second browser could vote again. For the 5-person gig group that is fine; it is not fraud-proof.
+- The duplicate check compares the exact file (SHA-256). A resized or re-saved copy of the same picture is not caught.
+- Parent consent emails are sent by a person (Devin) from his own email using the link the app gives him; the app has no email service of its own.
+- Under-13 sign-up asks only for a parent's email. Check with Cooley LLP whether the pilot needs anything more for COPPA before inviting under-13s.
